@@ -1,0 +1,12 @@
+{
+  "name": "project-bootstrap",
+  "description": "Scaffold any project with a production-grade Claude Code agentic methodology — agents, skills, hooks, and stories — generated in one interview session. Works on greenfield projects and existing codebases.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Ade",
+    "url": "https://github.com/ade"
+  },
+  "repository": "https://github.com/ade/claude-project-bootstrap",
+  "license": "MIT",
+  "keywords": ["bootstrap", "scaffold", "methodology", "agents", "agentic", "project-setup"]
+}
