@@ -39,7 +39,7 @@ The 5-step flow:
 ├── CLAUDE.md                  ← project constitution
 ├── settings.json              ← agent permissions + hooks
 ├── agents/                    ← one .md per persona
-├── commands/                  ← knowledge chunks per domain
+├── skills/                    ← knowledge chunks per domain
 ├── hooks/
 │   ├── pre-tool-use.sh        ← safety guardrails (blocks destructive commands)
 │   ├── post-tool-use.sh       ← auto-lint on Write (ruff, eslint)
@@ -62,7 +62,10 @@ roadmap.md                     ← phase plan
 
 ## Examples
 
-Two reference examples are included:
+A step-by-step walkthrough of a real session is in [`docs/walkthrough-pycalc.md`](docs/walkthrough-pycalc.md) —
+a greenfield Python CLI calculator bootstrapped from an empty directory to 12 stories across 4 phases.
+
+Two reference output examples are also included:
 
 - [`examples/lagrangia/`](examples/lagrangia/) — complex existing codebase: monorepo-to-multirepo
   migration with 5 phases, 7 agents, and 16 stories
