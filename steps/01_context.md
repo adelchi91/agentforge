@@ -5,58 +5,39 @@ Display this header exactly:
 STEP 1 / 5 — PROJECT CONTEXT
 ─────────────────────────────────────────────
 
-Ask the questions below in three separate exchanges. Do NOT bundle groups together.
-Do NOT ask Group B until you have received answers to Group A.
-Do NOT ask Group C until you have received answers to Group B.
+Ask questions ONE AT A TIME. Send one question, wait for the answer, then send the next.
+Never bundle multiple questions in one message. Never infer or assume an answer — if the
+user did not explicitly provide it, ask for it.
 
----
+## Questions (in order)
 
-## GROUP A — Identity
+1. "What is the name of this project?"
+   → WAIT for answer.
 
-Ask these three questions together, then STOP and wait for the user's response:
+2. "Describe it in 2–3 sentences: what does it do, who uses it?"
+   → WAIT for answer.
 
-  1. What is the name of this project?
-  2. Describe it in 2–3 sentences: what does it do, who uses it?
-  3. What is the primary programming language / stack?
+3. "What is the primary programming language and stack?"
+   → WAIT for answer. Do NOT infer the stack from the description.
 
-WAIT. Do not proceed until the user has answered all three.
+4. "Does this project have existing code? [Y/N]"
+   → WAIT for answer.
+   → If Y: "Are there any folders I should ignore during the scan?
+            (default ignores: .venv, node_modules, __pycache__, .git, dist, build)"
+            WAIT, then run the Explore scan.
+   → If N: "What is the main deliverable at the end of this project?"
+            WAIT for answer.
 
----
+5. "Are there any hard constraints I should know about?
+   (e.g. 'never touch the database schema', 'CI must always be green')"
+   → WAIT for answer.
 
-## GROUP B — Codebase
+6. "Is there a golden rule for this project?
+   (suggested default: 'The test suite must never break during development')"
+   → WAIT for answer.
 
-After receiving Group A answers, ask:
-
-  4. Does this project have existing code? [Y/N]
-
-WAIT for the answer.
-
-  - If Y: say "I'll scan the repo structure now." Then ask:
-          "Are there any folders I should ignore?
-           (default ignores: .venv, node_modules, __pycache__, .git, dist, build)"
-          Run the Explore scan after receiving the ignore list.
-  - If N: ask: "What is the main deliverable at the end of this project?"
-
-WAIT for the answer before continuing to Group C.
-
----
-
-## GROUP C — Constraints
-
-After receiving Group B answers, ask both questions together, then STOP and wait:
-
-  5. Are there any hard constraints I should know about?
-     (e.g. "never touch the database schema", "CI must always be green",
-            "no breaking changes to the public API")
-  6. Is there a golden rule for this project?
-     (default suggestion: "The test suite must never break during development")
-
-WAIT. Do not proceed until the user has answered.
-
----
-
-## After all three groups are complete
+## After all 6 questions are answered
 
 - If existing code: summarise the Explore scan results (modules, structure, size)
 - Write all answers + scan results to .bootstrap/01_context.md in structured markdown
-- Display: "Context saved to .bootstrap/01_context.md — type OK to continue to Step 2"
+- Display: "Context saved — type OK to continue to Step 2"
