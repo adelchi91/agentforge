@@ -12,7 +12,7 @@ and existing codebases alike.
 ## Install
 
 ```bash
-/plugin install https://github.com/ade/claude-project-bootstrap
+/plugin install https://github.com/adelchi91/agentforge
 ```
 
 ## Usage

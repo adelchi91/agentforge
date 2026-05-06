@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "author": {
     "name": "Ade",
-    "url": "https://github.com/ade"
+    "url": "https://github.com/adelchi91"
   },
-  "repository": "https://github.com/ade/claude-project-bootstrap",
+  "repository": "https://github.com/adelchi91/agentforge",
   "license": "MIT",
   "keywords": ["bootstrap", "scaffold", "methodology", "agents", "agentic", "project-setup"]
 }
