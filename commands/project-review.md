@@ -1,9 +1,9 @@
 ---
-name: review
+name: project-review
 description: >
   Review and update the roadmap or agent personas in an existing bootstrapped project.
   Triggers on: "update roadmap", "review personas", "revise agents", "update phases",
-  "change my roadmap", "/project-bootstrap:review"
+  "change my roadmap", "/project-review"
 agent: interviewer
 ---
 
@@ -71,6 +71,6 @@ Display: "No changes applied." and exit cleanly.
   Warning: Phase N has X stories. Removing it will orphan STORY-NNN through STORY-MMM.
   Continue? [Y/N]
   ```
-- Model routing rules from `refs/model_routing.md` apply to any agent modifications
+- Model routing rules from `.claude/refs/model_routing.md` apply to any agent modifications
 - Updated agent files must follow the agent template structure exactly
 - No template variable may remain unfilled in any updated file

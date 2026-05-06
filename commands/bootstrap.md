@@ -5,7 +5,7 @@ description: >
   Runs a 5-step interview to generate agents, skills, hooks, stories, and CLAUDE.md.
   Invoke at the start of any new or existing project.
   Triggers on: "bootstrap this project", "set up claude methodology",
-  "scaffold my project", "initialise agentic workflow", "/project-bootstrap:bootstrap"
+  "scaffold my project", "initialise agentic workflow", "/bootstrap"
 context: fork
 agent: interviewer
 ---

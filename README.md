@@ -2,24 +2,25 @@
 
 ## What this is
 
-`claude-project-bootstrap` is a Claude Code plugin that generates a complete agentic
-development environment for any software project in one interview session. It encodes
-a proven methodology built around Claude Code's native primitives — agents, skills,
-hooks, and stories — so you can start working on structured, multi-phase development
+`claude-project-bootstrap` is a set of Claude Code agents and commands that generates a complete
+agentic development environment for any software project in one interview session. It encodes
+a proven methodology built around Claude Code's native primitives — agents, commands, hooks,
+and stories — so you can start working on structured, multi-phase development
 with human-in-the-loop approval gates from day one. It works on greenfield projects
 and existing codebases alike.
 
 ## Install
 
 ```bash
-/plugin install https://github.com/adelchi91/agentforge
+# From your project root, clone directly into .claude/
+git clone https://github.com/adelchi91/agentforge .claude
 ```
 
 ## Usage
 
 ```bash
 # In any Claude Code session, from your project root:
-/project-bootstrap:bootstrap
+/bootstrap
 ```
 
 The 5-step flow:
@@ -36,7 +37,7 @@ The 5-step flow:
 ├── CLAUDE.md                  ← project constitution
 ├── settings.json              ← agent permissions + hooks
 ├── agents/                    ← one .md per persona
-├── skills/                    ← knowledge chunks per domain
+├── commands/                  ← knowledge chunks per domain
 ├── hooks/
 │   ├── pre-tool-use.sh        ← safety guardrails (blocks destructive commands)
 │   ├── post-tool-use.sh       ← auto-lint on Write (ruff, eslint)
@@ -51,10 +52,10 @@ roadmap.md                     ← phase plan
 ## Sub-commands
 
 ```
-/project-bootstrap:bootstrap   → full 5-step initialisation
-/project-bootstrap:story       → add a story to an existing phase
-/project-bootstrap:agent       → add a new agent
-/project-bootstrap:review      → update roadmap or personas
+/bootstrap        → full 5-step initialisation
+/story            → add a story to an existing phase
+/add-agent        → add a new agent
+/project-review   → update roadmap or personas
 ```
 
 ## Examples
@@ -68,7 +69,7 @@ Two reference examples are included:
 
 ## The methodology
 
-The methodology encodes five mechanisms — CLAUDE.md (constitution), skills (knowledge), hooks
+The methodology encodes five mechanisms — CLAUDE.md (constitution), commands (knowledge), hooks
 (guardrails), agents (personas), and stories (work contracts) — each with a specific role and
 location. They are non-overlapping by design: agents never contain knowledge, safety rules never
 live in agent instructions, and every story has runnable verification commands. See

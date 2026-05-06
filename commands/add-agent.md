@@ -1,9 +1,9 @@
 ---
-name: agent
+name: add-agent
 description: >
   Add a new agent to an existing bootstrapped project.
   Triggers on: "add an agent", "new agent", "create an agent", "I need a new agent",
-  "/project-bootstrap:agent"
+  "/add-agent"
 agent: scaffolder
 ---
 
@@ -20,9 +20,9 @@ Use this when a new technical domain is identified or the user requests a specia
 4. Ask: "Does this agent make architectural decisions, or does it execute deterministic tasks?"
    - Architectural decisions / judgment calls → `claude-sonnet-4-6`
    - Deterministic execution / templated work → `claude-haiku-4-5-20251001`
-5. Apply model routing from `refs/model_routing.md`
+5. Apply model routing from `.claude/refs/model_routing.md`
 6. Determine a unique color (check `.claude/agents/` for colors already in use)
-7. Generate the agent file from `templates/agent.md` — fill ALL template variable fields
+7. Generate the agent file from `.claude/templates/agent.md` — fill ALL template variable fields
 8. Show the complete agent file and ask:
 
 ```

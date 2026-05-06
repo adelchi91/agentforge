@@ -3,7 +3,7 @@ name: story
 description: >
   Add a new story to an existing phase in a bootstrapped project.
   Triggers on: "add a story", "new story", "create a story", "I need a new story",
-  "/project-bootstrap:story"
+  "/story"
 agent: planner
 ---
 

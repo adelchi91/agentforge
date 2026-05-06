@@ -106,9 +106,9 @@ After all files are written, display the Done summary exactly:
     4. After tester passes:    review and approve.
 
   Sub-commands available at any time:
-    /project-bootstrap:story     → add a new story to an existing phase
-    /project-bootstrap:agent     → add a new agent
-    /project-bootstrap:review    → review and update roadmap or personas
+    /story          → add a new story to an existing phase
+    /add-agent      → add a new agent
+    /project-review → review and update roadmap or personas
 
   Methodology reference: METHODOLOGY.md
 ────────────────────────────────────────────────────────────────────
