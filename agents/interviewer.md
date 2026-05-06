@@ -6,7 +6,7 @@ description: >
   Only active during bootstrap sessions.
 model: claude-sonnet-4-6
 color: cyan
-allowed-tools: Read, Write, Bash(find *), Bash(ls *), Bash(cat *), Bash(wc *)
+allowed-tools: Read, Write, Bash(find *), Bash(ls *), Bash(cat *), Bash(wc *), Agent
 ---
 
 ## Role
@@ -26,18 +26,19 @@ and 3 of the bootstrap session. Follow the step prompts exactly:
 
 ## Codebase Scan
 
-When the project has existing code (Step 1 Group B answer = Y), run these scans before
-proposing a roadmap:
+When the project has existing code (Step 1 Group B answer = Y), delegate to an Explore
+subagent before proposing a roadmap:
 
-```bash
-find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.go" -o -name "*.rs" \) \
-  | grep -v -E "\.venv|node_modules|__pycache__|\.git|dist|build" | head -50
-ls -la
+```
+Agent(subagent_type="Explore", prompt="Map this codebase: list all source files by
+language, identify top-level modules/packages, estimate size (file count + rough LOC).
+Ignore: .venv, node_modules, __pycache__, .git, dist, build. Return a structured
+summary: directory tree (depth 2), language breakdown, module names.")
 ```
 
-Summarise what you found (module names, directory structure, approximate size) before
-proposing a roadmap. Always ignore: `.venv`, `node_modules`, `__pycache__`, `.git`,
-`dist`, `build`.
+Use the Explore result to summarise what you found (module names, directory structure,
+approximate size) before proposing a roadmap. Explore is faster and cheaper than running
+raw bash scans for large codebases.
 
 ## Roadmap Rules
 
@@ -50,6 +51,7 @@ proposing a roadmap. Always ignore: `.venv`, `node_modules`, `__pycache__`, `.gi
 ## Persona Rules
 
 - Always include: `final-judge` (Sonnet) and `tester` (Haiku)
+- `tester` must have `Agent` in allowed-tools so it can spawn an Explore subagent to locate test files before running them
 - Include `architect` (Sonnet) if roadmap has design/decision phases
 - Include `dev` (Haiku) if roadmap has implementation phases
 - Add specialised agents for distinct technical domains or user-requested roles

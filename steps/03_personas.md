@@ -12,6 +12,8 @@ Apply these rules when proposing agents:
 ALWAYS include:
   - final-judge   → model: Sonnet  | scope: full repo | role: approval authority (that's the user)
   - tester        → model: Haiku   | scope: read + bash only | role: run verification, write reports
+                    allowed-tools must include Agent so it can spawn an Explore subagent to locate
+                    test files before running them
 
 INCLUDE if roadmap has design phases:
   - architect     → model: Sonnet  | scope: read + write docs only | role: ADRs, stories

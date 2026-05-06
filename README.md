@@ -12,9 +12,11 @@ and existing codebases alike.
 ## Install
 
 ```bash
-# From your project root, clone directly into .claude/
-git clone https://github.com/adelchi91/agentforge .claude
+# From your project root:
+curl -sL https://raw.githubusercontent.com/adelchi91/agentforge/main/install.sh | bash
 ```
+
+This copies only the required files (`agents/`, `commands/`, `templates/`, `steps/`, `refs/`) into `.claude/` — nothing else from the repo lands in your project.
 
 ## Usage
 
