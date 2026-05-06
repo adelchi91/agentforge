@@ -12,53 +12,56 @@ mkdir ~/pycalc && cd ~/pycalc
 
 # Install agentforge
 curl -sL https://raw.githubusercontent.com/adelchi91/agentforge/main/install.sh | bash
+# Output: Installing agentforge into .claude/ ...
+#         Done. Open Claude Code in this directory and run /bootstrap to start.
 
 # Open Claude Code
-claude .
+claude
 ```
+
+---
+
+## Running /bootstrap
+
+Type `/bootstrap` then `OK` to begin.
+
+```
+── Project Bootstrap ──────────────────────────────────────────────
+  claude-project-bootstrap v1.0.0
+
+  I'll scaffold a complete Claude Code agentic development
+  environment for this project in 5 steps:
+
+    Step 1 — Project context & codebase scan
+    Step 2 — Roadmap planning
+    Step 3 — Persona definition
+    Step 4 — Story generation
+    Step 5 — File scaffolding
+
+  Estimated time: 10–15 minutes.
+  Nothing is written to disk until Step 5 and you type GO.
+
+  Type OK to begin, or CANCEL to exit.
+───────────────────────────────────────────────────────────────────
+```
+
+When prompted for permissions during the session, choose **"Yes, allow all edits during this session"** to avoid approval prompts on every file write.
 
 ---
 
 ## Step 1 — Project context
 
-Run `/bootstrap` and type `OK` to begin. The interviewer asks:
+The interviewer asks one question at a time:
 
-**What is this project?**
-```
-pycalc — a CLI calculator supporting +, -, *, / with history. For personal use and as a test project.
-```
-
-**Primary stack?**
-```
-python
-```
-
-**Target Python version and packaging preferences?**
-```
-Python 3.11+, uv for package management, distributed as a pip-installable CLI tool
-```
-
-**Structure preferences?**
-```
-## Core logic
-- Operations: +, -, *, /, power, sqrt
-- Input validation with clear error messages
-- Float and integer support
-
-## CLI
-- Interactive REPL mode: type expressions, get results
-- Single expression mode: `pycalc "2 + 2"`
-- `--precision N` flag to control decimal places
-
-## History
-- Save last N calculations to ~/.pycalc_history
-- `pycalc --history` to display past results
-- `pycalc --clear-history` to wipe it
-
-## Distribution
-- Installable via `pip install pycalc` or `uv add pycalc`
-- Single `pycalc` entry point
-```
+| Question | Answer given |
+|---|---|
+| What is the name of this project? | `pycalc` |
+| Describe it in 2–3 sentences: what does it do, who uses it? | `pycalc — a CLI calculator supporting +, -, *, / with history. For personal use and as a test project.` |
+| What is the primary programming language and stack? | `Python 3.11+, uv for package management, distributed as a pip-installable CLI tool` |
+| Does this project have existing code? [Y/N] | `N` |
+| What is the main deliverable at the end of this project? | `A pip-installable CLI tool: pycalc "2+2" works from any terminal, with interactive REPL mode and calculation history` |
+| Are there any hard constraints? | `no` |
+| Is there a golden rule? | `The test suite must never break during development` |
 
 Type `OK` to move to Step 2.
 
@@ -66,60 +69,65 @@ Type `OK` to move to Step 2.
 
 ## Step 2 — Roadmap
 
-The interviewer proposes a phase plan. For pycalc it produced:
+The interviewer proposes a 4-phase roadmap:
 
-| Phase | Name | Stories |
-|---|---|---|
-| 1 | Core Logic | 4 |
-| 2 | CLI | 3 |
-| 3 | History | 3 |
-| 4 | Distribution | 1 |
+| Phase | Name | Description | Est. stories |
+|---|---|---|---|
+| 1 | Foundation & Scaffolding | Package structure, pyproject.toml, uv environment, CLI entry point skeleton, test harness | 3 |
+| 2 | Core Calculator Engine | Expression parser and evaluator: +, -, *, / with operator precedence and error handling | 4 |
+| 3 | CLI, REPL & History | One-shot CLI mode, interactive REPL, persistent calculation history | 5 |
+| 4 | Polish & Distribution | PyPI packaging, user-facing README, end-to-end install validation | 3 |
 
-Type `OK` to accept, or edit in natural language ("merge phases 3 and 4", "add a docs phase").
+Type `OK` to accept, or describe changes in natural language (e.g. "merge phases 3 and 4").
 
 ---
 
 ## Step 3 — Personas
 
-The interviewer proposes agents based on the roadmap:
+The interviewer proposes 4 agents:
 
 | Agent | Model | Scope | Role |
 |---|---|---|---|
-| architect | claude-sonnet-4-6 | read + write docs | Design module structure, ADRs |
-| dev | claude-haiku-4-5 | src/, tests/ | Implementation |
-| tester | claude-haiku-4-5 | read + bash | Run verification, write reports |
-| final-judge | claude-sonnet-4-6 | full repo read-only | Approval authority |
+| final-judge | claude-sonnet-4-6 | full repo | Approval authority — reviews and accepts/rejects completed stories |
+| architect | claude-sonnet-4-6 | read + write docs/stories | Writes design decisions, ADRs, story definitions |
+| dev | claude-haiku-4-5 | src/ + tests/ | Implements stories: Python source and unit tests |
+| tester | claude-haiku-4-5 | read + bash | Runs test suite, reports PASS/FAIL, uses Explore to locate test files |
 
-Type `OK` to accept.
+Type `OK` to accept, or request additional agents (e.g. "a packaging agent", "a docs writer").
 
 ---
 
 ## Step 4 — Stories
 
-The planner generates 12 stories across 4 phases:
+When asked "Review each story individually? [Y/N]", type `N` to generate all at once.
 
-| Story | Phase | Agent | Summary |
+The planner generates 15 stories across 4 phases:
+
+| Story | Phase | Agent | Title |
 |---|---|---|---|
-| STORY-001 | 1 — Core Logic | architect | Design module structure, public API, error hierarchy |
-| STORY-002 | 1 — Core Logic | dev | Scaffold project: pyproject.toml, src layout, empty modules |
-| STORY-003 | 1 — Core Logic | dev | Implement six arithmetic operations in calc.py |
-| STORY-004 | 1 — Core Logic | dev | Expression parser and validator in validator.py |
-| STORY-005 | 1 — Core Logic | tester | Pytest suite for calc.py and validator.py (≥20 tests) |
-| STORY-006 | 2 — CLI | dev | Single-expression mode with --precision flag |
-| STORY-007 | 2 — CLI | dev | Interactive REPL mode with Ctrl-C/Ctrl-D handling |
-| STORY-008 | 2 — CLI | tester | CLI integration tests via subprocess (≥12 tests) |
-| STORY-009 | 3 — History | dev | History storage module: append, read, clear, capped at N |
-| STORY-010 | 3 — History | dev | Wire history into CLI: --history / --clear-history |
-| STORY-011 | 3 — History | tester | History module and CLI flag tests (tmp_path isolation) |
-| STORY-012 | 4 — Distribution | final-judge | Build wheel, install in clean venv, full test run, SIGN-OFF.md |
+| STORY-001 | 1 — Foundation | architect | Define package structure and pyproject.toml spec |
+| STORY-002 | 1 — Foundation | dev | Scaffold Python package, pyproject.toml, and CLI entry point skeleton |
+| STORY-003 | 1 — Foundation | tester | Verify package installs and entry point runs |
+| STORY-004 | 2 — Core Engine | dev | Implement expression tokenizer |
+| STORY-005 | 2 — Core Engine | dev | Implement expression parser with operator precedence |
+| STORY-006 | 2 — Core Engine | dev | Implement evaluator with error handling |
+| STORY-007 | 2 — Core Engine | tester | Run full engine test suite and report |
+| STORY-008 | 3 — CLI & History | dev | Implement one-shot CLI mode |
+| STORY-009 | 3 — CLI & History | dev | Implement interactive REPL mode |
+| STORY-010 | 3 — CLI & History | dev | Implement in-session calculation history |
+| STORY-011 | 3 — CLI & History | dev | Implement persistent calculation history |
+| STORY-012 | 3 — CLI & History | tester | Run full CLI, REPL, and history test suite |
+| STORY-013 | 4 — Distribution | architect | Write README with usage examples |
+| STORY-014 | 4 — Distribution | dev | Finalise packaging for PyPI |
+| STORY-015 | 4 — Distribution | tester | Validate end-to-end install and smoke test |
 
-Before typing `GO`, verify the stories look sensible:
+Before typing `OK`, verify the stories:
 ```bash
-# Check no unfilled placeholders
+# No unfilled placeholders
 grep -r '{{' .bootstrap/stories/
 
-# Spot-check verification commands are real bash
-cat .bootstrap/stories/STORY-001.md
+# Spot-check a story's verification commands
+cat .bootstrap/stories/STORY-002.md
 ```
 
 Type `OK` to move to Step 5.
@@ -128,39 +136,45 @@ Type `OK` to move to Step 5.
 
 ## Step 5 — Scaffold
 
-Type `GO`. The scaffolder writes 24 files:
+The scaffolder shows a CHECKPOINT with the complete file tree, then waits for `GO`:
 
 ```
-pycalc/
+.claude/
 ├── CLAUDE.md
-├── roadmap.md
-├── project_context.md
-├── .gitignore
-└── .claude/
-    ├── settings.json
-    ├── agents/
-    │   ├── architect.md       (claude-sonnet-4-6)
-    │   ├── dev.md             (claude-haiku-4-5)
-    │   ├── tester.md          (claude-haiku-4-5)
-    │   └── final-judge.md     (claude-sonnet-4-6)
-    ├── skills/
-    │   ├── core-logic/arithmetic.md
-    │   ├── cli/argparse-patterns.md
-    │   ├── history/file-persistence.md
-    │   └── distribution/packaging.md
-    ├── hooks/
-    │   ├── pre-tool-use.sh
-    │   ├── post-tool-use.sh
-    │   └── stop.sh
-    └── stories/
-        └── STORY-001.md … STORY-012.md
+├── settings.json
+├── agents/
+│   ├── final-judge.md     (claude-sonnet-4-6)
+│   ├── architect.md       (claude-sonnet-4-6)
+│   ├── dev.md             (claude-haiku-4-5)
+│   └── tester.md          (claude-haiku-4-5)
+├── skills/
+│   ├── python-packaging.md
+│   └── expression-parsing.md
+├── hooks/
+│   ├── pre-tool-use.sh
+│   ├── post-tool-use.sh
+│   └── stop.sh
+└── stories/
+    └── STORY-001.md … STORY-015.md
+
+project_context.md
+roadmap.md
+.gitignore
 ```
 
-Final check:
+Type `GO`. After scaffolding completes, verify:
+
 ```bash
-grep -r '{{' .claude/    # must return empty
-ls -l .claude/hooks/     # all .sh must be -rwxr-xr-x
+# No unfilled placeholders
+grep -r '{{' .claude/
+
+# Hooks are executable
+ls -l .claude/hooks/
 ```
+
+> **Note:** during scaffolding you may see `PostToolUse:Write hook error — No such file or directory`.
+> This is harmless — the hook fires before the hook file itself has been written. It resolves once
+> scaffolding completes.
 
 ---
 
@@ -170,9 +184,13 @@ ls -l .claude/hooks/     # all .sh must be -rwxr-xr-x
 Work on STORY-001.
 ```
 
-The `architect` agent takes over, designs the module structure, and hands off to `dev` for STORY-002.
+The `architect` agent takes over and designs the package structure. Each subsequent story follows the same pattern:
 
-Each story follows the same pattern:
 1. `"Work on STORY-XXX."` — the assigned agent executes
 2. `"Test STORY-XXX."` — the tester agent runs verification
-3. Review and approve before moving to the next story
+3. Review output and approve before moving to the next story
+
+Sub-commands available at any time:
+- `/story` — add a new story to an existing phase
+- `/add-agent` — add a new agent
+- `/project-review` — update roadmap or personas
