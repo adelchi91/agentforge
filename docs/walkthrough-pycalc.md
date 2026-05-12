@@ -69,7 +69,13 @@ Type `OK` to move to Step 2.
 
 ## Step 2 — Roadmap
 
-The interviewer proposes a 4-phase roadmap:
+The interviewer first asks whether you already have a structure in mind:
+
+> "Do you already have an idea of how you'd like to structure this project — phases, milestones, or a rough plan? Or should I propose one based on what you've told me?"
+
+Answer: `Propose one — I have no prior structure in mind.`
+
+The interviewer then proposes a 4-phase roadmap:
 
 | Phase | Name | Description | Est. stories |
 |---|---|---|---|

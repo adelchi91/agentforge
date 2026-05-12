@@ -7,6 +7,15 @@ STEP 2 / 5 — ROADMAP
 
 Read .bootstrap/01_context.md fully before proposing anything.
 
+First, ask:
+  "Do you already have an idea of how you'd like to structure this project —
+   phases, milestones, or a rough plan? Or should I propose one based on what
+   you've told me?"
+  → WAIT for answer.
+  → If the user provides a structure: use it as the starting point and refine it
+    into a formal phase breakdown (apply the rules below).
+  → If the user says no / defer to you: generate a phase breakdown from context.
+
 Propose a phase breakdown following these rules:
 - Minimum 2 phases, maximum 8 phases
 - Each phase has: number, name, description (one sentence), estimated story count
