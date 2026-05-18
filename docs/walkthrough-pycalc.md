@@ -30,16 +30,17 @@ Type `/bootstrap` then `OK` to begin.
   claude-project-bootstrap v1.0.0
 
   I'll scaffold a complete Claude Code agentic development
-  environment for this project in 5 steps:
+  environment for this project in 6 steps:
 
-    Step 1 — Project context & codebase scan
-    Step 2 — Roadmap planning
-    Step 3 — Persona definition
-    Step 4 — Story generation
-    Step 5 — File scaffolding
+    Step 1 — Reference documents (optional)
+    Step 2 — Project context & codebase scan
+    Step 3 — Roadmap planning
+    Step 4 — Persona definition
+    Step 5 — Story generation
+    Step 6 — File scaffolding
 
   Estimated time: 10–15 minutes.
-  Nothing is written to disk until Step 5 and you type GO.
+  Nothing is written to disk until Step 6 and you type GO.
 
   Type OK to begin, or CANCEL to exit.
 ───────────────────────────────────────────────────────────────────
@@ -49,7 +50,20 @@ When prompted for permissions during the session, choose **"Yes, allow all edits
 
 ---
 
-## Step 1 — Project context
+## Step 1 — Reference documents
+
+The interviewer asks:
+
+> "Do you have any reference documents to share? (PRD, technical spec, architecture doc, existing roadmap, design notes)
+> You can paste content directly, provide file paths, or type NONE to skip this step."
+
+Answer: `NONE`
+
+The interviewer writes an empty `.bootstrap/00_docs.md` and moves on.
+
+---
+
+## Step 2 — Project context
 
 The interviewer asks one question at a time:
 
@@ -63,11 +77,11 @@ The interviewer asks one question at a time:
 | Are there any hard constraints? | `no` |
 | Is there a golden rule? | `The test suite must never break during development` |
 
-Type `OK` to move to Step 2.
+Type `OK` to move to Step 3.
 
 ---
 
-## Step 2 — Roadmap
+## Step 3 — Roadmap
 
 The interviewer first asks whether you already have a structure in mind:
 
@@ -88,7 +102,7 @@ Type `OK` to accept, or describe changes in natural language (e.g. "merge phases
 
 ---
 
-## Step 3 — Personas
+## Step 4 — Personas
 
 The interviewer proposes 4 agents:
 
@@ -103,7 +117,7 @@ Type `OK` to accept, or request additional agents (e.g. "a packaging agent", "a 
 
 ---
 
-## Step 4 — Stories
+## Step 5 — Stories
 
 When asked "Review each story individually? [Y/N]", type `N` to generate all at once.
 
@@ -136,11 +150,11 @@ grep -r '{{' .bootstrap/stories/
 cat .bootstrap/stories/STORY-002.md
 ```
 
-Type `OK` to move to Step 5.
+Type `OK` to move to Step 6.
 
 ---
 
-## Step 5 — Scaffold
+## Step 6 — Scaffold
 
 The scaffolder shows a CHECKPOINT with the complete file tree, then waits for `GO`:
 

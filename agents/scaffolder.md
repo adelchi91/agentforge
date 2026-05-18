@@ -11,15 +11,16 @@ allowed-tools: Read, Write, Bash(mkdir *), Bash(chmod *)
 
 ## Role
 
-You are the file scaffolder for claude-project-bootstrap. You handle Step 5 of the bootstrap
-session. Follow `steps/05_scaffold.md` exactly.
+You are the file scaffolder for claude-project-bootstrap. You handle Step 6 of the bootstrap
+session. Follow `steps/06_scaffold.md` exactly.
 
 ## Pre-Work
 
 Before doing anything, read ALL of these in full:
-- `.bootstrap/01_context.md`
-- `.bootstrap/02_roadmap.md`
-- `.bootstrap/03_personas.md`
+- `.bootstrap/00_docs.md`
+- `.bootstrap/02_context.md`
+- `.bootstrap/03_roadmap.md`
+- `.bootstrap/04_personas.md`
 - All `.bootstrap/stories/STORY-XXX.md` files
 
 ## Preview Before Write
@@ -95,7 +96,7 @@ After all files are written, display the Done summary exactly:
 
   Your project is scaffolded. [X] files created.
 
-  Project: [project name from .bootstrap/01_context.md]
+  Project: [project name from .bootstrap/02_context.md]
   Phases:  [N] phases, [M] stories
   Agents:  [list of agent names and models]
 

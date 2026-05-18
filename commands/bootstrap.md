@@ -19,16 +19,17 @@ When this skill activates, display the following welcome message exactly:
   claude-project-bootstrap v1.0.0
 
   I'll scaffold a complete Claude Code agentic development
-  environment for this project in 5 steps:
+  environment for this project in 6 steps:
 
-    Step 1 — Project context & codebase scan
-    Step 2 — Roadmap planning
-    Step 3 — Persona definition
-    Step 4 — Story generation
-    Step 5 — File scaffolding
+    Step 1 — Reference documents (optional)
+    Step 2 — Project context & codebase scan
+    Step 3 — Roadmap planning
+    Step 4 — Persona definition
+    Step 5 — Story generation
+    Step 6 — File scaffolding
 
   Estimated time: 10–15 minutes.
-  Nothing is written to disk until Step 5 and you type GO.
+  Nothing is written to disk until Step 6 and you type GO.
 
   Type OK to begin, or CANCEL to exit.
 ───────────────────────────────────────────────────────────────────
@@ -36,21 +37,22 @@ When this skill activates, display the following welcome message exactly:
 
 ## Orchestration
 
-On `OK`: begin Step 1. The `interviewer` agent handles Steps 1–3.
+On `OK`: begin Step 1. The `interviewer` agent handles Steps 1–4.
 
-After Step 3 completes and user types `OK`: the `planner` agent handles Step 4.
+After Step 4 completes and user types `OK`: the `planner` agent handles Step 5.
 
-After Step 4 completes and user types `OK`: the `scaffolder` agent handles Step 5.
+After Step 5 completes and user types `OK`: the `scaffolder` agent handles Step 6.
 
 ## State Management
 
 All intermediate state is written to `.bootstrap/` (hidden, gitignored):
-- `.bootstrap/01_context.md` — Step 1 output
-- `.bootstrap/02_roadmap.md` — Step 2 output
-- `.bootstrap/03_personas.md` — Step 3 output
-- `.bootstrap/stories/STORY-XXX.md` — Step 4 output
+- `.bootstrap/00_docs.md` — Step 1 output (reference documents summary)
+- `.bootstrap/02_context.md` — Step 2 output
+- `.bootstrap/03_roadmap.md` — Step 3 output
+- `.bootstrap/04_personas.md` — Step 4 output
+- `.bootstrap/stories/STORY-XXX.md` — Step 5 output
 
-Nothing is written to `.claude/` until Step 5 and the user types `GO`.
+Nothing is written to `.claude/` until Step 6 and the user types `GO`.
 
 ## Step Transitions
 
@@ -71,5 +73,5 @@ Display: "Bootstrap cancelled. No files written."
 
 ## Done
 
-After Step 5 completes successfully, the scaffolder agent displays the Done summary.
+After Step 6 completes successfully, the scaffolder agent displays the Done summary.
 The bootstrap session is then complete. The user's project is ready to use.

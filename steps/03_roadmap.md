@@ -1,11 +1,11 @@
-# Step 2 — Roadmap Planning
+# Step 3 — Roadmap Planning
 
 Display this header exactly:
 ─────────────────────────────────────────────
-STEP 2 / 5 — ROADMAP
+STEP 3 / 6 — ROADMAP
 ─────────────────────────────────────────────
 
-Read .bootstrap/01_context.md fully before proposing anything.
+Read `.bootstrap/02_context.md` and `.bootstrap/00_docs.md` fully before proposing anything.
 
 First, ask:
   "Do you already have an idea of how you'd like to structure this project —
@@ -30,6 +30,14 @@ Display the proposed roadmap as a numbered list, then ask:
 
 Accept edits and regenerate until the user types OK.
 
-After OK:
-- Write the finalised roadmap to .bootstrap/02_roadmap.md
-- Display: "Roadmap saved — type OK to continue to Step 3"
+## Cross-check against reference documents
+
+After the roadmap is accepted, check `.bootstrap/00_docs.md` for any phases, milestones,
+or constraints mentioned in the docs that are NOT covered by the roadmap. For each gap:
+  - Surface it explicitly: "Your docs mention [X] but the roadmap has no phase for it — intentional?"
+  - Wait for the user to confirm or adjust the roadmap before saving.
+Skip this check if `.bootstrap/00_docs.md` contains "(none provided)".
+
+After OK (and any cross-check adjustments):
+- Write the finalised roadmap to .bootstrap/03_roadmap.md
+- Display: "Roadmap saved — type OK to continue to Step 4"

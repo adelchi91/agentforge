@@ -25,12 +25,13 @@ This copies only the required files (`agents/`, `commands/`, `templates/`, `step
 /bootstrap
 ```
 
-The 5-step flow:
-- **Step 1** — Answer questions about your project and stack; existing codebases are scanned automatically
-- **Step 2** — Review and approve a phase-based roadmap
-- **Step 3** — Review and approve the agent personas (model, scope, tools)
-- **Step 4** — Review and approve generated story files (one per unit of work)
-- **Step 5** — Type `GO` to generate the complete `.claude/` folder structure
+The 6-step flow:
+- **Step 1** — Optionally share reference documents (PRD, spec, architecture notes) to seed the session
+- **Step 2** — Answer questions about your project and stack; existing codebases are scanned automatically
+- **Step 3** — Review and approve a phase-based roadmap (cross-checked against your docs if provided)
+- **Step 4** — Review and approve the agent personas (model, scope, tools)
+- **Step 5** — Review and approve generated story files (one per unit of work)
+- **Step 6** — Type `GO` to generate the complete `.claude/` folder structure
 
 ## What it generates
 

@@ -1,11 +1,11 @@
-# Step 4 — Story Generation
+# Step 5 — Story Generation
 
 Display this header exactly:
 ─────────────────────────────────────────────
-STEP 4 / 5 — STORIES
+STEP 5 / 6 — STORIES
 ─────────────────────────────────────────────
 
-Read all three .bootstrap/ files before generating anything.
+Read all `.bootstrap/` files (00_docs, 02_context, 03_roadmap, 04_personas) before generating anything.
 
 First ask:
   "Review each story individually as I generate it? [Y/N]
@@ -19,7 +19,7 @@ STORY RULES:
   2. Stories are numbered sequentially across all phases: STORY-001, STORY-002, ...
   3. The first story of Phase N always depends on the last story of Phase N-1
   4. Verification commands must be real runnable shell commands — never "run the tests"
-  5. Each story is assigned to exactly one agent from .bootstrap/03_personas.md
+  5. Each story is assigned to exactly one agent from .bootstrap/04_personas.md
   6. Scope constraint: explicitly state which folders/files the agent may touch
   7. "Out of scope" section is mandatory — state what must NOT be changed
 
@@ -34,4 +34,4 @@ If review mode N:
   - Show the complete list with one-line summary per story
 
 After all stories written:
-  - Display: "X stories generated across Y phases — type OK to continue to Step 5"
+  - Display: "X stories generated across Y phases — type OK to continue to Step 6"

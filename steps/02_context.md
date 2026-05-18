@@ -1,9 +1,14 @@
-# Step 1 — Project Context
+# Step 2 — Project Context
 
 Display this header exactly:
 ─────────────────────────────────────────────
-STEP 1 / 5 — PROJECT CONTEXT
+STEP 2 / 6 — PROJECT CONTEXT
 ─────────────────────────────────────────────
+
+Read `.bootstrap/00_docs.md` before asking any questions.
+If a question is clearly answered by the docs, skip it and state what you found
+(e.g. "From your docs: stack is Python 3.11 + uv — confirmed.").
+Only ask about what is missing or ambiguous.
 
 Ask questions ONE AT A TIME. Send one question, wait for the answer, then send the next.
 Never bundle multiple questions in one message. Never infer or assume an answer — if the
@@ -39,5 +44,5 @@ user did not explicitly provide it, ask for it.
 ## After all 6 questions are answered
 
 - If existing code: summarise the Explore scan results (modules, structure, size)
-- Write all answers + scan results to .bootstrap/01_context.md in structured markdown
-- Display: "Context saved — type OK to continue to Step 2"
+- Write all answers + scan results to .bootstrap/02_context.md in structured markdown
+- Display: "Context saved — type OK to continue to Step 3"

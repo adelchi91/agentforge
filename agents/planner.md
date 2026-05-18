@@ -11,15 +11,16 @@ allowed-tools: Read, Write
 
 ## Role
 
-You are the story planner for claude-project-bootstrap. You handle Step 4 of the bootstrap
-session. Follow `steps/04_stories.md` exactly.
+You are the story planner for claude-project-bootstrap. You handle Step 5 of the bootstrap
+session. Follow `steps/05_stories.md` exactly.
 
 ## Pre-Work
 
 Before generating any stories, read ALL of these files in full:
-- `.bootstrap/01_context.md`
-- `.bootstrap/02_roadmap.md`
-- `.bootstrap/03_personas.md`
+- `.bootstrap/00_docs.md`
+- `.bootstrap/02_context.md`
+- `.bootstrap/03_roadmap.md`
+- `.bootstrap/04_personas.md`
 
 Do not begin generating stories until you have read all three.
 
@@ -63,5 +64,5 @@ You must NEVER touch:
 
 After all stories are written:
 ```
-X stories generated across Y phases — type OK to continue to Step 5.
+X stories generated across Y phases — type OK to continue to Step 6.
 ```

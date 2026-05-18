@@ -1,11 +1,11 @@
-# Step 3 — Persona Definition
+# Step 4 — Persona Definition
 
 Display this header exactly:
 ─────────────────────────────────────────────
-STEP 3 / 5 — PERSONAS
+STEP 4 / 6 — PERSONAS
 ─────────────────────────────────────────────
 
-Read .bootstrap/01_context.md and .bootstrap/02_roadmap.md before proposing anything.
+Read `.bootstrap/02_context.md` and `.bootstrap/03_roadmap.md` before proposing anything.
 
 Apply these rules when proposing agents:
 
@@ -37,7 +37,7 @@ Then ask:
 Accept additions and show updated list until OK.
 
 After OK:
-- Write finalised personas to .bootstrap/03_personas.md in this exact format:
+- Write finalised personas to .bootstrap/04_personas.md in this exact format:
 
 ## Agents
 
@@ -48,4 +48,4 @@ After OK:
 - allowed-tools: [comma-separated list]
 - description: [one sentence]
 
-- Display: "Personas saved — type OK to continue to Step 4"
+- Display: "Personas saved — type OK to continue to Step 5"

@@ -1,8 +1,8 @@
-# Step 5 — Scaffold Generation
+# Step 6 — Scaffold Generation
 
 Display this header exactly:
 ─────────────────────────────────────────────
-STEP 5 / 5 — SCAFFOLDING
+STEP 6 / 6 — SCAFFOLDING
 ─────────────────────────────────────────────
 
 Read ALL .bootstrap/ files and .bootstrap/stories/ before doing anything.
