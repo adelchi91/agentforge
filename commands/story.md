@@ -14,16 +14,19 @@ Use this when new work is identified after the initial bootstrap session.
 
 ## Procedure
 
-1. Read `project_context.md`, `roadmap.md`, and all existing `.claude/stories/STORY-XXX.md` files
-2. Ask: "Which phase does this story belong to?" (show existing phases from `roadmap.md`)
-3. Ask: "Describe what needs to be done in 2–3 sentences."
-4. Ask: "Which agent will handle this?" (show existing agents from `.claude/agents/`)
-5. Determine the next story number: `max(existing STORY-NNN) + 1`
-6. Generate the story following `templates/story.md`
-7. Show the complete story and ask:
+1. Detect the scaffold target:
+   - Claude if `.claude/CLAUDE.md` exists
+   - Codex if `AGENTS.md` and `.agents/stories/` exist
+2. Read `project_context.md`, `roadmap.md`, and all existing story files
+3. Ask: "Which phase does this story belong to?" (show existing phases from `roadmap.md`)
+4. Ask: "Describe what needs to be done in 2–3 sentences."
+5. Ask: "Which agent will handle this?" (show existing agents from `.claude/agents/` or `.codex/agents/`)
+6. Determine the next story number: `max(existing STORY-NNN) + 1`
+7. Generate the story following `templates/shared/story.md`
+8. Show the complete story and ask:
 
 ```
-Write to .claude/stories/STORY-NNN.md? [GO / CANCEL]
+Write to [story directory]/STORY-NNN.md? [GO / CANCEL]
 ```
 
 ## Rules
@@ -36,9 +39,10 @@ Write to .claude/stories/STORY-NNN.md? [GO / CANCEL]
 
 ## On GO
 
-Write the story to `.claude/stories/STORY-NNN.md` and display:
+Write the story to `.claude/stories/STORY-NNN.md` for Claude or
+`.agents/stories/STORY-NNN.md` for Codex, and display:
 ```
-✓ STORY-NNN written to .claude/stories/STORY-NNN.md
+✓ STORY-NNN written to [story directory]/STORY-NNN.md
 
 Start it with: "Work on STORY-NNN."
 ```

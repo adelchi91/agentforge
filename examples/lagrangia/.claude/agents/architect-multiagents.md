@@ -54,4 +54,4 @@ You must NEVER touch:
 
 Architecture Decision Records (ADRs) in `dessia-multiagents/docs/adr/ADR-NNN.md`.
 Service contract in `service_contract.yaml` (YAML, human-readable).
-Stories follow `templates/story.md` structure exactly.
+Stories follow `templates/shared/story.md` structure exactly.

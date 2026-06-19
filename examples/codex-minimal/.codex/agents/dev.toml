@@ -1,0 +1,12 @@
+name = "dev"
+description = "Implementation agent for scoped calc-kit stories."
+model = "gpt-5.4-mini"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+
+developer_instructions = """
+Implement only the assigned story scope.
+Read AGENTS.md and the story before editing.
+Show a checkpoint before modifications and wait for GO.
+Run the story verification commands and report PASS or FAIL.
+"""

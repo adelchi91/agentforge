@@ -5,7 +5,8 @@ Display this header exactly:
 STEP 5 / 6 — STORIES
 ─────────────────────────────────────────────
 
-Read all `.bootstrap/` files (00_docs, 02_context, 03_roadmap, 04_personas) before generating anything.
+Read all `.bootstrap/` files (target_platform, 00_docs, 02_context, 03_roadmap, 04_personas)
+before generating anything.
 
 First ask:
   "Review each story individually as I generate it? [Y/N]
@@ -20,6 +21,7 @@ STORY RULES:
   3. The first story of Phase N always depends on the last story of Phase N-1
   4. Verification commands must be real runnable shell commands — never "run the tests"
   5. Each story is assigned to exactly one agent from .bootstrap/04_personas.md
+     using that platform's model and reasoning fields
   6. Scope constraint: explicitly state which folders/files the agent may touch
   7. "Out of scope" section is mandatory — state what must NOT be changed
 

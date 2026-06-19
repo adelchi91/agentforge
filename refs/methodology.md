@@ -1,30 +1,31 @@
 # Methodology Reference
 
 Injected as context into bootstrap agents. Dense and precise — not explanatory.
+The methodology is platform-neutral; file locations branch by target platform.
 
 ---
 
 ## The Five Mechanisms
 
-| Mechanism | Location | Nature | Role |
-|---|---|---|---|
-| CLAUDE.md | project root | Deterministic | Project constitution — loaded in every session |
-| Skills | `.claude/skills/` | Probabilistic | Knowledge chunks — injected on demand by trigger |
-| Hooks | `.claude/hooks/` | Deterministic | Guardrails — enforced unconditionally at runtime |
-| Agents | `.claude/agents/` | Probabilistic | Personas — isolated context + model assignment |
-| Stories | `.claude/stories/` | Contract | Units of work — acceptance criteria + verification |
+| Mechanism | Claude target | Codex target | Nature | Role |
+|---|---|---|---|---|
+| Constitution | `CLAUDE.md` | `AGENTS.md` | Deterministic | Project rules loaded every session |
+| Skills | `.claude/skills/` | `.agents/skills/` | Probabilistic | Knowledge chunks loaded on demand |
+| Hooks | `.claude/hooks/` + settings.json | `.codex/hooks/` + hooks.json | Deterministic | Guardrails enforced at runtime |
+| Agents | `.claude/agents/*.md` | `.codex/agents/*.toml` | Probabilistic | Personas + model assignment |
+| Stories | `.claude/stories/` | `.agents/stories/` | Contract | Units of work + verification |
 
 **Deterministic:** always executes regardless of agent reasoning.
-**Probabilistic:** loaded by Claude Code when content matches trigger conditions.
+**Probabilistic:** loaded by the runtime when content matches trigger conditions or agent use.
 
 ---
 
 ## Core Rules
 
 1. Agents and skills are always separate files. A skill never defines a persona. An agent never contains knowledge (commands, templates, field definitions, reference docs).
-2. Safety rules go in hooks, not in agent instructions. Any rule that must hold unconditionally belongs in a hook with `exit 2`.
-3. `exit 2` is the only hard stop in Claude Code. `exit 1` is a soft warning (Claude may continue). `exit 0` allows. Only `exit 2` unconditionally blocks.
-4. Model assignment is mandatory per agent. No agent file may omit the `model:` frontmatter field.
+2. Safety rules go in hooks, not in agent instructions. Any rule that must hold unconditionally belongs in a hook.
+3. Hooks block unsafe work; use `exit 2` for hard blocks in generated hook scripts.
+4. Model assignment is mandatory per agent. Claude agents use frontmatter; Codex agents use TOML. Codex agents include `sandbox_mode` when scope maps cleanly to `read-only` or `workspace-write`.
 5. Every story must have runnable verification commands. No prose descriptions. Real shell commands that produce a pass/fail signal.
 6. The golden rule for migrations: if a project has existing code, nothing is deleted until the final phase is fully validated and final-judge has approved.
 
@@ -32,15 +33,15 @@ Injected as context into bootstrap agents. Dense and precise — not explanatory
 
 ## Model Routing Table
 
-| Task type | Model | Rationale |
-|---|---|---|
-| Architectural judgment, ADRs, story authoring | `claude-sonnet-4-6` | Requires reasoning over ambiguous requirements |
-| Final approval, review decisions | `claude-sonnet-4-6` | Approval requires judgment, not pattern-matching |
-| Deterministic implementation, file migration | `claude-haiku-4-5-20251001` | Speed + cost efficiency for templated work |
-| Command execution, PASS/FAIL reporting | `claude-haiku-4-5-20251001` | Output is deterministic from command results |
-| Mechanical restructuring, copy operations | `claude-haiku-4-5-20251001` | No ambiguity in task definition |
+| Task type | Claude model | Codex model | Rationale |
+|---|---|---|---|
+| Architectural judgment, ADRs, story authoring | `claude-sonnet-4-6` | `gpt-5.5` high reasoning | Requires reasoning over ambiguous requirements |
+| Final approval, review decisions | `claude-sonnet-4-6` | `gpt-5.5` high reasoning | Approval requires judgment |
+| Deterministic implementation, file migration | `claude-haiku-4-5-20251001` | `gpt-5.4-mini` low/medium reasoning | Speed for bounded work |
+| Command execution, PASS/FAIL reporting | `claude-haiku-4-5-20251001` | `gpt-5.4-mini` low/medium reasoning | Output is determined by command results |
+| Mechanical restructuring, copy operations | `claude-haiku-4-5-20251001` | `gpt-5.4-mini` low reasoning | No ambiguity in task definition |
 
-Built-in agents (`Explore`, `Plan`) — use as-is. Do not redefine them.
+Built-in agents — use as-is. Claude: `Explore`, `Plan`. Codex: `explorer`, `worker`, `default`.
 
 ---
 
@@ -48,17 +49,17 @@ Built-in agents (`Explore`, `Plan`) — use as-is. Do not redefine them.
 
 When creating a new file or rule, apply these four questions in order:
 
-1. Must this be enforced unconditionally (cannot be argued away by Claude)?
-   **YES → Hook (`exit 2`)** | NO → continue
+1. Must this be enforced unconditionally (cannot be argued away by the agent)?
+   **YES → Hook** | NO → continue
 
 2. Does this define who an agent IS and what it can do?
-   **YES → `agents/*.md`** | NO → continue
+   **YES → Claude `agents/*.md`; Codex `.codex/agents/*.toml`** | NO → continue
 
 3. Does this define what an agent KNOWS?
-   **YES → `skills/*.md`** | NO → continue
+   **YES → Claude `skills/*.md`; Codex `.agents/skills/*/SKILL.md`** | NO → continue
 
 4. Does this apply to every session without exception?
-   **YES → `CLAUDE.md`** | NO → story file or inline context
+   **YES → Claude `CLAUDE.md`; Codex `AGENTS.md`** | NO → story file or inline context
 
 ---
 
@@ -81,7 +82,7 @@ Status values in order — no story may skip a status:
 
 Every agent session follows these six steps:
 
-1. **Load context.** Read `CLAUDE.md`. Read the assigned story file. Read any referenced skills.
+1. **Load context.** Read the constitution (`CLAUDE.md` or `AGENTS.md`). Read the assigned story file. Read any referenced skills.
 2. **State intent.** Declare the story being worked on and the scope constraints that apply.
 3. **Checkpoint.** Before any file modification, display: what will change, risk level (Low / Medium / High), wait for `GO`.
 4. **Execute.** Act within scope. Reference the story ID in every git commit message.
@@ -92,12 +93,12 @@ Every agent session follows these six steps:
 
 ## Standard Agent Set
 
-| Agent | Model | Scope | Role |
+| Agent | Model class | Scope | Role |
 |---|---|---|---|
-| `final-judge` | Sonnet | Full repo (read only) | Human-in-the-loop approval authority |
-| `tester` | Haiku | Read + Bash only | Runs verification commands, writes reports |
-| `architect` | Sonnet | Read + write docs/stories | Writes ADRs, design decisions, stories |
-| `dev` | Haiku | Restricted folder list | Implements stories mechanically |
+| `final-judge` | Judgment | Full repo (read only) | Human-in-the-loop approval authority |
+| `tester` | Deterministic | Read + Bash only | Runs verification commands, writes reports |
+| `architect` | Judgment | Read + write docs/stories | Writes ADRs, design decisions, stories |
+| `dev` | Deterministic | Restricted folder list | Implements stories mechanically |
 
 Additional specialised agents are added per project domain.
 
@@ -105,13 +106,14 @@ Additional specialised agents are added per project domain.
 
 ## Hook Protocol
 
-| Hook | Event | Action |
-|---|---|---|
-| `pre-tool-use.sh` | Before every Bash call | Blocks destructive commands; enforces STORY-XXX in commit messages |
-| `post-tool-use.sh` | After every Write call | Auto-lints Python (ruff) and JS/TS (eslint) |
-| `stop.sh` | Session end | Appends record to `.claude/session-log.txt` |
+| Hook | Claude target | Codex target | Action |
+|---|---|---|---|
+| Pre tool use | `pre-tool-use.sh` | `pre_tool_use_policy.py` | Blocks destructive commands; enforces STORY-XXX in commit messages |
+| Post tool use | `post-tool-use.sh` | `post_tool_use_lint.py` | Auto-lints Python (ruff) and JS/TS (eslint) |
+| Stop | `stop.sh` | `stop_session_log.py` | Appends a session record |
 
-All hooks use `exit 2` for hard blocks. Registered in `settings.json`. Cannot be disabled by agent instructions.
+All generated hook scripts use `exit 2` for hard blocks. Claude registers hooks in
+`settings.json`; Codex registers hooks in `.codex/hooks.json`.
 
 ---
 

@@ -1,6 +1,7 @@
 # Walkthrough — pycalc (Python CLI Calculator)
 
-A complete end-to-end example of running `/bootstrap` on a greenfield Python project.
+A complete end-to-end example of running `/bootstrap` for the Claude target on a
+greenfield Python project.
 This documents an actual session run against an empty directory.
 
 ---
@@ -12,7 +13,8 @@ mkdir ~/pycalc && cd ~/pycalc
 
 # Install agentforge
 curl -sL https://raw.githubusercontent.com/adelchi91/agentforge/main/install.sh | bash
-# Output: Installing agentforge into .claude/ ...
+# Output: Installing agentforge target: claude
+#         Installing Claude bootstrap into .claude/ ...
 #         Done. Open Claude Code in this directory and run /bootstrap to start.
 
 # Open Claude Code
@@ -27,10 +29,10 @@ Type `/bootstrap` then `OK` to begin.
 
 ```
 ── Project Bootstrap ──────────────────────────────────────────────
-  claude-project-bootstrap v1.0.0
+  project-bootstrap v1.0.0
 
-  I'll scaffold a complete Claude Code agentic development
-  environment for this project in 6 steps:
+  I'll scaffold a complete agentic development environment
+  for either Claude Code or Codex in 6 steps:
 
     Step 1 — Reference documents (optional)
     Step 2 — Project context & codebase scan
@@ -47,6 +49,16 @@ Type `/bootstrap` then `OK` to begin.
 ```
 
 When prompted for permissions during the session, choose **"Yes, allow all edits during this session"** to avoid approval prompts on every file write.
+
+Before Step 1, choose the output target:
+
+```
+Which environment should I scaffold?
+  - CLAUDE → generate a Claude Code .claude/ scaffold
+  - CODEX  → generate a Codex-native AGENTS.md/.codex/.agents scaffold
+```
+
+Answer: `CLAUDE`
 
 ---
 
@@ -110,8 +122,8 @@ The interviewer proposes 4 agents:
 |---|---|---|---|
 | final-judge | claude-sonnet-4-6 | full repo | Approval authority — reviews and accepts/rejects completed stories |
 | architect | claude-sonnet-4-6 | read + write docs/stories | Writes design decisions, ADRs, story definitions |
-| dev | claude-haiku-4-5 | src/ + tests/ | Implements stories: Python source and unit tests |
-| tester | claude-haiku-4-5 | read + bash | Runs test suite, reports PASS/FAIL, uses Explore to locate test files |
+| dev | claude-haiku-4-5-20251001 | src/ + tests/ | Implements stories: Python source and unit tests |
+| tester | claude-haiku-4-5-20251001 | read + bash | Runs test suite, reports PASS/FAIL, uses Explore to locate test files |
 
 Type `OK` to accept, or request additional agents (e.g. "a packaging agent", "a docs writer").
 
@@ -165,8 +177,8 @@ The scaffolder shows a CHECKPOINT with the complete file tree, then waits for `G
 ├── agents/
 │   ├── final-judge.md     (claude-sonnet-4-6)
 │   ├── architect.md       (claude-sonnet-4-6)
-│   ├── dev.md             (claude-haiku-4-5)
-│   └── tester.md          (claude-haiku-4-5)
+│   ├── dev.md             (claude-haiku-4-5-20251001)
+│   └── tester.md          (claude-haiku-4-5-20251001)
 ├── skills/
 │   ├── python-packaging.md
 │   └── expression-parsing.md
