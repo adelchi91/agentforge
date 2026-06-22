@@ -36,8 +36,9 @@ selection and Steps 1–4 of the bootstrap session. Follow the step prompts exac
 
 ## Codebase Scan
 
-When the project has existing code (Step 1 Group B answer = Y), delegate to an Explore
-subagent before proposing a roadmap:
+When Step 2 determines that the project has existing code, delegate to an Explore
+subagent before proposing a roadmap. The existing-code signal may come from Step 1
+documents, repository context, or the user's direct answer:
 
 ```
 Agent(subagent_type="Explore", prompt="Map this codebase: list all source files by

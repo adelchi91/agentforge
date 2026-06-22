@@ -6,13 +6,29 @@ STEP 2 / 6 — PROJECT CONTEXT
 ─────────────────────────────────────────────
 
 Read `.bootstrap/00_docs.md` before asking any questions.
-If a question is clearly answered by the docs, skip it and state what you found
-(e.g. "From your docs: stack is Python 3.11 + uv — confirmed.").
-Only ask about what is missing or ambiguous.
 
-Ask questions ONE AT A TIME. Send one question, wait for the answer, then send the next.
-Never bundle multiple questions in one message. Never infer or assume an answer — if the
-user did not explicitly provide it, ask for it.
+First, extract a draft context from Step 1:
+- project name
+- 2-3 sentence project description
+- primary language and stack
+- whether existing code is present
+- folders to ignore during scanning, if mentioned
+- main deliverable, if greenfield
+- hard constraints
+- golden rule
+
+Display the fields that are clearly answered by the docs under `From your docs:`.
+Treat those fields as answered. Do not ask the user to repeat them.
+
+Only ask about fields that are missing or ambiguous. If the user replies with
+`go on`, `continue`, or `use the docs` for a field that has a clear draft value,
+use the draft value and move on. If there is no clear draft value, ask a concise
+follow-up instead of inventing an answer.
+
+Ask missing or ambiguous questions ONE AT A TIME. Send one question, wait for the
+answer, then send the next. Never bundle multiple questions in one message. Never
+infer an answer from unrelated context; Step 1 docs count as provided context when
+they clearly answer the field.
 
 ## Questions (in order)
 
@@ -23,15 +39,20 @@ user did not explicitly provide it, ask for it.
    → WAIT for answer.
 
 3. "What is the primary programming language and stack?"
-   → WAIT for answer. Do NOT infer the stack from the description.
+   → WAIT for answer only if the docs do not clearly answer it. Do NOT infer the
+     stack from the project description alone.
 
 4. "Does this project have existing code? [Y/N]"
-   → WAIT for answer.
-   → If Y: "Are there any folders I should ignore during the scan?
+   → WAIT for answer only if the docs and repository context do not clearly answer it.
+   → If Y, or if existing code is clear from docs/repository context: run the
+     Explore scan using default ignores unless the user already provided custom
+     ignore folders.
+   → Ask "Are there any additional folders I should ignore during the scan?
             (default ignores: .venv, node_modules, __pycache__, .git, dist, build)"
-            WAIT, then run the Explore scan.
+            only when the default ignores are likely insufficient or the docs mention
+            generated/vendor directories.
    → If N: "What is the main deliverable at the end of this project?"
-            WAIT for answer.
+            WAIT for answer only if the docs do not clearly answer it.
 
 5. "Are there any hard constraints I should know about?
    (e.g. 'never touch the database schema', 'CI must always be green')"
