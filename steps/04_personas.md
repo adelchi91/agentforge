@@ -48,8 +48,9 @@ Then ask:
 Accept additions and show updated list until OK.
 
 After OK:
-- Write finalised personas to .bootstrap/04_personas.md in this exact format:
+- Write finalised personas to `.bootstrap/04_personas.md` in this exact format:
 
+```markdown
 ## Agents
 
 ### [name]
@@ -60,5 +61,7 @@ After OK:
 - scope: [folders or "full repo"]
 - allowed-tools: [Claude allowed tools, or Codex tool policy notes]
 - description: [one sentence]
+```
 
 - Display: "Personas saved — type OK to continue to Step 5"
+- Then stop. Do not generate stories until the user sends `OK` for Step 5.

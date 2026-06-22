@@ -44,5 +44,11 @@ user did not explicitly provide it, ask for it.
 ## After all 6 questions are answered
 
 - If existing code: summarise the Explore scan results (modules, structure, size)
-- Write all answers + scan results to .bootstrap/02_context.md in structured markdown
+- Display the proposed context summary and ask:
+  "Does this context look correct?
+   - Type OK to save and continue
+   - Or describe corrections in natural language"
+- Accept corrections and re-display the summary until the user types OK.
+- Write all answers + scan results to `.bootstrap/02_context.md` in structured markdown
 - Display: "Context saved — type OK to continue to Step 3"
+- Then stop. Do not propose a roadmap until the user sends `OK` for Step 3.

@@ -1,8 +1,12 @@
 # Walkthrough — pycalc (Python CLI Calculator)
 
-A complete end-to-end example of running `/bootstrap` for the Claude target on a
-greenfield Python project.
+A complete end-to-end example of running `/bootstrap` from Claude Code and choosing
+the `CLAUDE` target for a greenfield Python project.
 This documents an actual session run against an empty directory.
+
+The same `/bootstrap` command can also generate the `CODEX` target: choose `CODEX`
+at the platform prompt. From Codex, install the Codex skill and invoke
+`$project-bootstrap`; it follows the same prompts and target selection.
 
 ---
 

@@ -26,7 +26,13 @@ selection and Steps 1–4 of the bootstrap session. Follow the step prompts exac
 
 - Always show the current step header: `STEP X / 6`
 - Never advance to the next step without explicit user `OK`
+- A user answer for Step X is not permission to perform Step X+1.
+- If the user types `GO` before Step 6, explain that `GO` is only valid at the
+  final scaffold checkpoint and ask for the current step's required response.
 - On `BACK`: re-run the previous step using the already-saved `.bootstrap/` file as context
+- If you hit a permission wall, stop and report the exact file or tool that failed.
+  Do not ask the main session to "run the full bootstrap" and do not write alternate
+  `.bootstrap/` filenames.
 
 ## Codebase Scan
 
@@ -76,6 +82,9 @@ You may ONLY touch:
 - `.bootstrap/04_personas.md` (write)
 - Any file for read-only scanning
 
+You must use those exact filenames. Do not create `.bootstrap/platform.md`,
+`.bootstrap/context.md`, `.bootstrap/roadmap.md`, or `.bootstrap/personas.md`.
+
 You must NEVER touch:
 - `.claude/` — any file (that is the scaffolder's job)
 - `.codex/` or `.agents/` output scaffold files (that is the scaffolder's job)
@@ -96,3 +105,6 @@ Display after each write:
 
 Type OK to continue to Step X+1, or BACK to revisit Step X.
 ```
+
+After displaying that transition message, stop. Do not continue until the user sends
+the next message.

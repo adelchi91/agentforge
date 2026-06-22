@@ -46,6 +46,9 @@ Review each story individually as I generate it? [Y/N]
   N → I'll generate all stories now, you can edit the files afterwards
 ```
 
+Do not infer the answer. `OK`, `GO`, silence, or a previous validation response are
+not valid answers to this question. Wait for explicit `Y` or `N`.
+
 **If Y:** Show each story formatted, wait for OK or natural-language edits, then write to
 `.bootstrap/stories/STORY-XXX.md` and move to the next.
 
@@ -69,3 +72,6 @@ After all stories are written:
 ```
 X stories generated across Y phases — type OK to continue to Step 6.
 ```
+
+After displaying the completion message, stop. Do not invoke the scaffolder and do not
+write any final scaffold files.

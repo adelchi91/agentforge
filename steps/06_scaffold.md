@@ -51,6 +51,9 @@ If target platform is `CODEX`, display the complete file tree of what will be cr
 Then display:
   "Type GO to generate all files, or CANCEL to exit without writing anything."
 
+Wait for a fresh `GO` or `CANCEL` after displaying the Step 6 checkpoint. A `GO`
+typed during any earlier step is invalid and must not be reused.
+
 On CANCEL: exit cleanly, display "No files written."
 
 On GO for `CLAUDE`:

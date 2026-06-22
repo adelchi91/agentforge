@@ -39,5 +39,6 @@ or constraints mentioned in the docs that are NOT covered by the roadmap. For ea
 Skip this check if `.bootstrap/00_docs.md` contains "(none provided)".
 
 After OK (and any cross-check adjustments):
-- Write the finalised roadmap to .bootstrap/03_roadmap.md
+- Write the finalised roadmap to `.bootstrap/03_roadmap.md`
 - Display: "Roadmap saved — type OK to continue to Step 4"
+- Then stop. Do not propose personas until the user sends `OK` for Step 4.

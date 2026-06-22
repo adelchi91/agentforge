@@ -13,6 +13,9 @@ First ask:
    Y → I'll show each story and wait for your OK before continuing
    N → I'll generate all stories now, you can edit the files afterwards"
 
+Do not infer the answer. `OK`, `GO`, silence, or a previous validation response are
+not valid answers to this question. Wait for explicit `Y` or `N`.
+
 For each phase in the roadmap, generate stories following these rules:
 
 STORY RULES:
@@ -37,3 +40,4 @@ If review mode N:
 
 After all stories written:
   - Display: "X stories generated across Y phases — type OK to continue to Step 6"
+  - Then stop. Do not scaffold until the user sends `OK` for Step 6.

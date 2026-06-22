@@ -2,7 +2,7 @@
 
 ## What this is
 
-`project-bootstrap` is a set of Claude Code commands and Codex skills that generates a complete
+`project-bootstrap` is a Claude Code command set and Codex bootstrap skill that generates a complete
 agentic development environment for any software project in one interview session. It encodes
 a proven methodology built around project constitutions, agents, skills, hooks, and stories,
 so you can start structured, multi-phase development with human-in-the-loop approval gates
@@ -25,6 +25,9 @@ The default keeps backward compatibility and installs the Claude bootstrap into 
 The Codex install adds a repo-scoped skill at `.agents/skills/project-bootstrap/` with the
 same bootstrap resources bundled beside it.
 
+Installation chooses the tool surface you start from. The bootstrap flow itself then asks
+which output target to generate, so either surface can scaffold `CLAUDE` or `CODEX`.
+
 ## Usage
 
 ```bash
@@ -34,6 +37,10 @@ same bootstrap resources bundled beside it.
 # In any Codex session, from your project root:
 $project-bootstrap
 ```
+
+Both invocations run the same 6-step flow. At the start, choose `CLAUDE` to generate
+a Claude Code `.claude/` scaffold or `CODEX` to generate `AGENTS.md`, `.codex/`,
+and `.agents/`.
 
 The 6-step flow:
 - **Target selection** — Choose `CLAUDE` or `CODEX` before Step 1
@@ -87,8 +94,8 @@ roadmap.md                     ← phase plan
 ## Sub-commands
 
 ```
-/bootstrap        → full 6-step Claude initialisation
-$project-bootstrap → full 6-step Codex initialisation
+/bootstrap         → start the 6-step flow from Claude Code; choose CLAUDE or CODEX
+$project-bootstrap → start the 6-step flow from Codex; choose CLAUDE or CODEX
 /story            → add a story to an existing phase
 /add-agent        → add a new agent
 /project-review   → update roadmap or personas

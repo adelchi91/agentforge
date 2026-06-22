@@ -49,6 +49,9 @@ Type GO to proceed, or CANCEL to exit without writing.
 
 3. Wait for explicit `GO` or `CANCEL`.
 
+Do not treat a `GO` from any earlier step as valid. Step 6 must display this checkpoint
+first, then receive a fresh `GO` from the user.
+
 ## On CANCEL
 
 Exit cleanly. Display: "No files written." Do not create any files.

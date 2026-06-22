@@ -24,12 +24,15 @@ Write `.bootstrap/00_docs.md`:
 (none provided)
 ```
 Display: "No documents provided — type OK to continue to Step 2"
+Then stop. Do not start Step 2 until the user sends `OK`.
 
 ## If documents provided
 
 For each **file path** provided:
 - Read the file with the Read tool
-- If unreadable: notify the user and skip it
+- If unreadable: notify the user with the exact path and error, then stop and ask
+  whether they want to paste the content, provide a different path, or skip that
+  file. Do not continue until the user decides.
 
 For each document (pasted or read from file), extract:
 - Goals and purpose
@@ -66,3 +69,7 @@ These signals will be used to:
 
 Type OK to continue to Step 2, or BACK to add more documents.
 ```
+
+Then stop. Do not infer project context, write `.bootstrap/02_context.md`, propose a
+roadmap, generate personas, generate stories, or scaffold files until the user sends
+`OK` for the next step.
