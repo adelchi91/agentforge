@@ -1,7 +1,7 @@
 # STORY-001 — Initialise Package Structure
 
 ## Status: READY FOR DEVELOPMENT
-## Agent: dev (model: claude-haiku-4-5-20251001)
+## Agent: dev (model: sonnet)
 ## Phase: 1 — Foundation
 ## Depends on: none
 ## Estimated effort: 1 session (1–2 hours)

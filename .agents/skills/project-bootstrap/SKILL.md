@@ -38,8 +38,18 @@ Prefer the repository's source files when present. If this skill was installed b
 
 ## Platform Rules
 
-- Claude judgment agents use `claude-sonnet-4-6`; deterministic/test agents use `claude-haiku-4-5-20251001`.
-- Codex judgment agents use `gpt-5.5` with high reasoning; deterministic/test agents use `gpt-5.4-mini` with low or medium reasoning.
+- Claude agents use model aliases: judgment → `opus`, implementation → `sonnet`,
+  deterministic/test → `haiku`. Claude agent frontmatter uses the `tools:` key.
+- Codex judgment agents use `gpt-5.5` with `model_reasoning_effort = "high"`;
+  implementation agents use `gpt-5.5` with `"medium"`; deterministic/test agents use
+  `gpt-5.4-mini` with `"low"` or `"medium"`.
 - Codex custom agents set `sandbox_mode` to `read-only` for reviewers/testers/final-judge and `workspace-write` for implementation agents.
+- Hook scripts are shared between platforms (`templates/shared/hooks/*.py`) — both
+  platforms deliver the hook payload as JSON on stdin. Claude registers them in
+  `.claude/settings.json`; Codex registers them in `.codex/hooks.json`.
+- The Repo Ownership table is compiled into `scopes.json` and enforced by the
+  PreToolUse hook — agent scope is a guardrail, not just an instruction.
+- After a Codex scaffold, remind the user to trust the generated hooks via `/hooks`
+  (Codex does not run untrusted project hooks).
 - Skills are knowledge-only. Agents are persona-only. Hooks hold safety policy. Stories are work contracts with runnable verification commands.
 - Use `AGENTS.md` as the Codex constitution and `CLAUDE.md` as the Claude constitution.

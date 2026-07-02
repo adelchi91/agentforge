@@ -4,9 +4,9 @@ description: >
   Generates story files for bootstrap step 5.
   Reads context, roadmap, and personas from .bootstrap/.
   Only active during bootstrap sessions.
-model: claude-sonnet-4-6
+model: inherit
 color: purple
-allowed-tools: Read, Write
+tools: Read, Write
 ---
 
 ## Role

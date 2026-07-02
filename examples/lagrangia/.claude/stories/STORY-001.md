@@ -1,7 +1,7 @@
 # STORY-001 — Extract dessia-memory Package
 
 ## Status: READY FOR DEVELOPMENT
-## Agent: dev-memory (model: claude-haiku-4-5-20251001)
+## Agent: dev-memory (model: sonnet)
 ## Phase: 1 — Extract dessia-memory
 ## Depends on: none
 ## Estimated effort: 1 session (4–6 hours)

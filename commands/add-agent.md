@@ -4,7 +4,7 @@ description: >
   Add a new agent to an existing bootstrapped project.
   Triggers on: "add an agent", "new agent", "create an agent", "I need a new agent",
   "/add-agent"
-agent: scaffolder
+argument-hint: [agent role]
 ---
 
 ## Purpose
@@ -20,16 +20,19 @@ Use this when a new technical domain is identified or the user requests a specia
 2. Read all existing agents from `.claude/agents/` or `.codex/agents/` (list name, model, scope for each)
 3. Ask: "What is this agent's role? (one sentence describing what it does)"
 4. Ask: "Which folders may it touch? (comma-separated paths, or 'full repo' for read-only)"
-5. Ask: "Does this agent make architectural decisions, or does it execute deterministic tasks?"
-   - Claude architectural decisions / judgment calls → `claude-sonnet-4-6`
-   - Claude deterministic execution / templated work → `claude-haiku-4-5-20251001`
-   - Codex architectural decisions / judgment calls → `gpt-5.5`, reasoning `high`
+5. Ask: "Does this agent make architectural decisions, implement code, or execute deterministic tasks?"
+   - Claude judgment calls / architecture / approval → `opus`
+   - Claude implementation (writing code, features, refactors) → `sonnet`
+   - Claude deterministic execution / command running / templated work → `haiku`
+   - Codex judgment calls / architecture / approval → `gpt-5.5`, reasoning `high`
+   - Codex implementation → `gpt-5.5`, reasoning `medium`
    - Codex deterministic execution / templated work → `gpt-5.4-mini`, reasoning `low` or `medium`
 6. Apply model routing from the installed refs/model_routing.md
 7. For Codex, set `sandbox_mode = "read-only"` for reviewer/tester/final-judge style agents and `sandbox_mode = "workspace-write"` for implementation agents.
 8. For Claude, determine a unique color by checking `.claude/agents/` for colors already in use. For Codex, do not add a color field unless the Codex template defines one.
-9. Generate the agent file from `templates/claude/agent.md` or `templates/codex/agent.toml` — fill ALL template variable fields
-10. Show the complete agent file and ask:
+9. Generate the agent file from `templates/claude/agent.md` or `templates/codex/agent.toml` — fill ALL template variable fields (Claude agents use the `tools:` frontmatter key)
+10. If the new agent has a write scope, add it to `.claude/hooks/scopes.json` (Claude) or `.codex/hooks/scopes.json` (Codex) so the scope-enforcement hook covers it; show the diff
+11. Show the complete agent file and ask:
 
 ```
 Write to [agent directory]/NAME.[md or toml]? [GO / CANCEL]

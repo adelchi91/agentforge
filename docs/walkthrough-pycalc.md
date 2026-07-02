@@ -15,14 +15,24 @@ at the platform prompt. From Codex, install the Codex skill and invoke
 ```bash
 mkdir ~/pycalc && cd ~/pycalc
 
-# Install agentforge
+# Open Claude Code
+claude
+```
+
+Install the plugin (once per machine — it then works in every project):
+
+```
+/plugin marketplace add adelchi91/agentforge
+/plugin install project-bootstrap@agentforge
+```
+
+Or use the script install instead, which copies the bootstrap into this project's `.claude/`:
+
+```bash
 curl -sL https://raw.githubusercontent.com/adelchi91/agentforge/main/install.sh | bash
 # Output: Installing agentforge target: claude
 #         Installing Claude bootstrap into .claude/ ...
 #         Done. Open Claude Code in this directory and run /bootstrap to start.
-
-# Open Claude Code
-claude
 ```
 
 ---
@@ -33,7 +43,7 @@ Type `/bootstrap` then `OK` to begin.
 
 ```
 ── Project Bootstrap ──────────────────────────────────────────────
-  project-bootstrap v1.0.0
+  project-bootstrap v1.1.0
 
   I'll scaffold a complete agentic development environment
   for either Claude Code or Codex in 6 steps:
@@ -124,10 +134,10 @@ The interviewer proposes 4 agents:
 
 | Agent | Model | Scope | Role |
 |---|---|---|---|
-| final-judge | claude-sonnet-4-6 | full repo | Approval authority — reviews and accepts/rejects completed stories |
-| architect | claude-sonnet-4-6 | read + write docs/stories | Writes design decisions, ADRs, story definitions |
-| dev | claude-haiku-4-5-20251001 | src/ + tests/ | Implements stories: Python source and unit tests |
-| tester | claude-haiku-4-5-20251001 | read + bash | Runs test suite, reports PASS/FAIL, uses Explore to locate test files |
+| final-judge | opus | full repo (read-only, `permissionMode: plan`) | Approval authority — reviews and accepts/rejects completed stories |
+| architect | opus | read + write docs/stories | Writes design decisions, ADRs, story definitions |
+| dev | sonnet | src/ + tests/ | Implements stories: Python source and unit tests |
+| tester | haiku | read + bash | Runs test suite, reports PASS/FAIL, uses Explore to locate test files |
 
 Type `OK` to accept, or request additional agents (e.g. "a packaging agent", "a docs writer").
 
@@ -179,17 +189,22 @@ The scaffolder shows a CHECKPOINT with the complete file tree, then waits for `G
 ├── CLAUDE.md
 ├── settings.json
 ├── agents/
-│   ├── final-judge.md     (claude-sonnet-4-6)
-│   ├── architect.md       (claude-sonnet-4-6)
-│   ├── dev.md             (claude-haiku-4-5-20251001)
-│   └── tester.md          (claude-haiku-4-5-20251001)
+│   ├── final-judge.md     (opus, permissionMode: plan)
+│   ├── architect.md       (opus, memory: project)
+│   ├── dev.md             (sonnet)
+│   └── tester.md          (haiku)
 ├── skills/
-│   ├── python-packaging.md
-│   └── expression-parsing.md
+│   ├── python-packaging/SKILL.md
+│   └── expression-parsing/SKILL.md
 ├── hooks/
-│   ├── pre-tool-use.sh
-│   ├── post-tool-use.sh
-│   └── stop.sh
+│   ├── pre_tool_use.py
+│   ├── post_tool_use.py
+│   ├── session_start.py
+│   ├── user_prompt_submit.py
+│   ├── subagent_stop.py
+│   ├── pre_compact.py
+│   ├── session_end.py
+│   └── scopes.json
 └── stories/
     └── STORY-001.md … STORY-015.md
 
@@ -204,13 +219,12 @@ Type `GO`. After scaffolding completes, verify:
 # No unfilled placeholders
 grep -r '{{' .claude/
 
-# Hooks are executable
+# Hook suite is in place (scripts + scopes.json)
 ls -l .claude/hooks/
 ```
 
-> **Note:** during scaffolding you may see `PostToolUse:Write hook error — No such file or directory`.
-> This is harmless — the hook fires before the hook file itself has been written. It resolves once
-> scaffolding completes.
+Hooks are copied before `settings.json` is written, so no hook registration ever
+points at a missing script during scaffolding.
 
 ---
 

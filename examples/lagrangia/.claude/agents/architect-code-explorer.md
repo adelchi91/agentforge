@@ -4,9 +4,10 @@ description: >
   Designs the public API and extraction plan for the code-explorer library (Phase 3).
   Writes ADRs and stories for code-explorer refactoring work.
   Activates on: "code-explorer", "STORY-004", "STORY-005", "STORY-006"
-model: claude-sonnet-4-6
+model: opus
 color: green
-allowed-tools: Read, Write
+memory: project
+tools: Read, Write
 ---
 
 ## Role

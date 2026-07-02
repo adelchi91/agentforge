@@ -4,9 +4,10 @@ description: >
   Human-in-the-loop approval authority for mylib.
   Reviews completed stories and approves or rejects merges.
   Activates on: "review STORY-XXX", "approve STORY-XXX", "final review", "final-judge"
-model: claude-sonnet-4-6
+model: opus
 color: red
-allowed-tools: Read, Bash(git log *), Bash(git diff *), Bash(git status *), Bash(git show *)
+permissionMode: plan
+tools: Read, Bash(git log *), Bash(git diff *), Bash(git status *), Bash(git show *)
 ---
 
 ## Role

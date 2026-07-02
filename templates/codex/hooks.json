@@ -1,25 +1,47 @@
 {
   "hooks": {
-    "PreToolUse": [
+    "SessionStart": [
       {
-        "matcher": "^Bash$",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .codex/hooks/pre_tool_use_policy.py",
+            "command": "python3 .codex/hooks/session_start.py",
             "timeout": 30,
-            "statusMessage": "Checking Bash command"
+            "statusMessage": "Loading golden rule and active story"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .codex/hooks/user_prompt_submit.py",
+            "timeout": 30,
+            "statusMessage": "Loading story scope"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .codex/hooks/pre_tool_use.py",
+            "timeout": 30,
+            "statusMessage": "Checking safety policy and agent scope"
           }
         ]
       }
     ],
     "PermissionRequest": [
       {
-        "matcher": "^Bash$",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .codex/hooks/pre_tool_use_policy.py",
+            "command": "python3 .codex/hooks/pre_tool_use.py",
             "timeout": 30,
             "statusMessage": "Checking approval request"
           }
@@ -32,9 +54,31 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .codex/hooks/post_tool_use_lint.py",
+            "command": "python3 .codex/hooks/post_tool_use.py",
             "timeout": 60,
             "statusMessage": "Running targeted lint checks"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .codex/hooks/subagent_stop.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .codex/hooks/pre_compact.py",
+            "timeout": 30
           }
         ]
       }
@@ -44,7 +88,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .codex/hooks/stop_session_log.py",
+            "command": "python3 .codex/hooks/session_end.py",
             "timeout": 30
           }
         ]

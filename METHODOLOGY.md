@@ -42,14 +42,19 @@ templates, field definitions, reference documentation). The distinction is: agen
 **Rule 2 — Safety in hooks, not in agent instructions.**
 Any rule that must hold unconditionally belongs in a hook, not in an agent's system prompt.
 An agent can be instructed to ignore its own system prompt; it cannot be instructed to
-override a runtime hook.
+override a runtime hook. This includes write scopes: the Repo Ownership table is compiled
+into `scopes.json` at scaffold time and enforced by the PreToolUse hook, so an agent
+writing outside its owned folders is blocked deterministically.
 
 **Rule 3 — hooks hard-block safety-critical actions.**
-Generated hook scripts use `exit 2` for hard blocks and `exit 0` for allowed work.
+Generated hook scripts read the hook payload as JSON on stdin and use `exit 2` for hard
+blocks and `exit 0` for allowed work.
 
 **Rule 4 — Model assignment is mandatory per agent.**
-No agent file may omit the model field. Claude agents use frontmatter; Codex agents use TOML.
-Judgment tasks use the strongest reasoning model; deterministic tasks use the faster model.
+No agent file may omit the model field. Claude agents use frontmatter with model aliases
+(`opus`/`sonnet`/`haiku`, or `inherit`) so generated projects track the current lineup;
+Codex agents use TOML with model IDs. Judgment tasks use the strongest reasoning tier;
+implementation tasks use the balanced tier; deterministic tasks use the fast tier.
 See the Model Routing section below.
 Codex agents also include `sandbox_mode` when scope maps cleanly to `read-only` or
 `workspace-write`.
@@ -68,11 +73,19 @@ and the final-judge has approved. The first phase always extracts; the last phas
 
 | Task type | Claude target | Codex target | Rationale |
 |---|---|---|---|
-| Architectural judgment, ADRs, story authoring | `claude-sonnet-4-6` | `gpt-5.5` high reasoning | Requires reasoning over ambiguous requirements |
-| Final approval decisions | `claude-sonnet-4-6` | `gpt-5.5` high reasoning | Approval requires judgment |
-| Deterministic implementation, file migration | `claude-haiku-4-5-20251001` | `gpt-5.4-mini` low/medium reasoning | Speed for bounded work |
-| Command execution, PASS/FAIL reporting | `claude-haiku-4-5-20251001` | `gpt-5.4-mini` low/medium reasoning | Output is deterministic from command results |
-| Mechanical restructuring, copy operations | `claude-haiku-4-5-20251001` | `gpt-5.4-mini` low reasoning | No ambiguity in the task definition |
+| Architectural judgment, ADRs, story authoring | `opus` | `gpt-5.5` high reasoning | Requires reasoning over ambiguous requirements |
+| Final approval decisions | `opus` | `gpt-5.5` high reasoning | Approval requires judgment |
+| Story implementation (code, features, refactors) | `sonnet` | `gpt-5.5` medium reasoning | Real coding work at implementation-tier cost |
+| Command execution, PASS/FAIL reporting | `haiku` | `gpt-5.4-mini` low/medium reasoning | Output is deterministic from command results |
+| Mechanical restructuring, copy operations | `haiku` | `gpt-5.4-mini` low reasoning | No ambiguity in the task definition |
+
+Claude routing uses **aliases**, which always resolve to the current model in each tier
+(today: Opus 4.8 for judgment, Sonnet 5 for implementation, Haiku 4.5 for deterministic
+work) — generated projects never pin stale model IDs. `fable` (Claude Fable 5) is an
+opt-in for the very hardest judgment work; it is not the default because it is priced
+above the Opus tier and its safety classifiers can decline security-adjacent review work.
+Codex has no alias mechanism, so Codex agents pin current IDs (`gpt-5.5`, `gpt-5.4-mini`;
+`gpt-5.3-codex-spark` as a fast exploration option).
 
 Built-in agents are used as-is. Claude: `Explore`, `Plan`. Codex: `explorer`, `worker`,
 `default`. Do not redefine them unless the project needs a custom override.
@@ -133,15 +146,15 @@ Every project scaffolded with this methodology includes at minimum:
 
 | Agent | Model class | Scope | Role |
 |---|---|---|---|
-| `final-judge` | Judgment | Full repo (read only) | Human-in-the-loop approval authority |
+| `final-judge` | Judgment | Full repo (read only; Claude: `permissionMode: plan`) | Human-in-the-loop approval authority |
 | `tester` | Deterministic | Read + Bash only | Runs verification commands, writes PASS/FAIL reports |
 
 And typically includes:
 
 | Agent | Model class | Scope | Role |
 |---|---|---|---|
-| `architect` | Judgment | Read + write docs/stories | Writes ADRs, design decisions, and stories |
-| `dev` | Deterministic | Restricted folder list | Implements stories mechanically |
+| `architect` | Judgment | Read + write docs/stories (Claude: `memory: project`) | Writes ADRs, design decisions, and stories |
+| `dev` | Implementation | Restricted folder list | Implements stories within scope |
 
 Additional specialised agents are added per project domain. For example, a monorepo
 migration might have `dev-memory`, `dev-tools`, `architect-multiagents`.
@@ -150,16 +163,25 @@ migration might have `dev-memory`, `dev-tools`, `architect-multiagents`.
 
 ## Hook Protocol
 
-Three hooks fire at defined points in every session:
-
-| Hook | Claude target | Codex target | Action |
-|---|---|---|---|
-| Pre tool use | `pre-tool-use.sh` | `pre_tool_use_policy.py` | Blocks destructive commands; enforces STORY-XXX references in commit messages |
-| Post tool use | `post-tool-use.sh` | `post_tool_use_lint.py` | Auto-lints Python (ruff) and JavaScript/TypeScript (eslint) if available |
-| Stop | `stop.sh` | `stop_session_log.py` | Appends a session record |
-
-Claude hooks are registered in `.claude/settings.json`. Codex hooks are registered in
+Both platforms use the same hook contract — the payload arrives as JSON on stdin, and
+`exit 2` hard-blocks the action — so one shared set of Python hook scripts serves both.
+Claude hooks are registered in `.claude/settings.json`; Codex hooks are registered in
 `.codex/hooks.json`. Hooks cannot be disabled by agent instructions.
+
+| Event | Script | Action |
+|---|---|---|
+| SessionStart | `session_start.py` | Injects the Golden Rule and the active story into session context |
+| UserPromptSubmit | `user_prompt_submit.py` | When the prompt references STORY-XXX, injects that story's Scope / Out of Scope |
+| PreToolUse | `pre_tool_use.py` | Blocks destructive commands; enforces STORY-XXX in commits and pushes; enforces per-agent write scopes from `scopes.json` |
+| PostToolUse | `post_tool_use.py` | Auto-lints Python (ruff) and JavaScript/TypeScript (eslint) on Write/Edit, if available |
+| SubagentStop | `subagent_stop.py` | Appends a handoff-chain record (agent + story) to the session log |
+| PreCompact | `pre_compact.py` | Records active story and branch so state survives context compaction |
+| SessionEnd (Claude) / Stop (Codex) | `session_end.py` | Appends a session record |
+
+Codex parity notes: Codex has no `SessionEnd` event, so the session record fires on
+`Stop` (per turn) there; and Codex requires project hooks to be reviewed and trusted
+via its `/hooks` command before they run — the scaffolder's Done summary reminds the
+user to do this.
 
 ---
 

@@ -5,8 +5,12 @@ description: >
   Activates on: {{ACTIVATION_TRIGGERS}}
 model: {{MODEL}}
 color: {{COLOR}}
-allowed-tools: {{ALLOWED_TOOLS}}
+tools: {{TOOLS}}
 ---
+<!-- Optional frontmatter the scaffolder adds when applicable (remove this comment in generated files):
+     permissionMode: plan        ← read-only approval agents (e.g. final-judge)
+     memory: project             ← agents that accumulate knowledge across sessions (e.g. architects)
+     skills: [skill-name]        ← preload the agent's domain skill -->
 
 ## Role
 

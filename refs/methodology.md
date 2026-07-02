@@ -23,9 +23,9 @@ The methodology is platform-neutral; file locations branch by target platform.
 ## Core Rules
 
 1. Agents and skills are always separate files. A skill never defines a persona. An agent never contains knowledge (commands, templates, field definitions, reference docs).
-2. Safety rules go in hooks, not in agent instructions. Any rule that must hold unconditionally belongs in a hook.
-3. Hooks block unsafe work; use `exit 2` for hard blocks in generated hook scripts.
-4. Model assignment is mandatory per agent. Claude agents use frontmatter; Codex agents use TOML. Codex agents include `sandbox_mode` when scope maps cleanly to `read-only` or `workspace-write`.
+2. Safety rules go in hooks, not in agent instructions. Any rule that must hold unconditionally belongs in a hook. This includes agent write scopes: the Repo Ownership table is compiled into `scopes.json` and enforced by the PreToolUse hook.
+3. Hooks block unsafe work; generated hook scripts read the hook payload as JSON on stdin and use `exit 2` for hard blocks.
+4. Model assignment is mandatory per agent. Claude agents use frontmatter with model **aliases** (`opus`/`sonnet`/`haiku`, or `inherit`); Codex agents use TOML with model IDs. Codex agents include `sandbox_mode` when scope maps cleanly to `read-only` or `workspace-write`.
 5. Every story must have runnable verification commands. No prose descriptions. Real shell commands that produce a pass/fail signal.
 6. The golden rule for migrations: if a project has existing code, nothing is deleted until the final phase is fully validated and final-judge has approved.
 
@@ -35,11 +35,15 @@ The methodology is platform-neutral; file locations branch by target platform.
 
 | Task type | Claude model | Codex model | Rationale |
 |---|---|---|---|
-| Architectural judgment, ADRs, story authoring | `claude-sonnet-4-6` | `gpt-5.5` high reasoning | Requires reasoning over ambiguous requirements |
-| Final approval, review decisions | `claude-sonnet-4-6` | `gpt-5.5` high reasoning | Approval requires judgment |
-| Deterministic implementation, file migration | `claude-haiku-4-5-20251001` | `gpt-5.4-mini` low/medium reasoning | Speed for bounded work |
-| Command execution, PASS/FAIL reporting | `claude-haiku-4-5-20251001` | `gpt-5.4-mini` low/medium reasoning | Output is determined by command results |
-| Mechanical restructuring, copy operations | `claude-haiku-4-5-20251001` | `gpt-5.4-mini` low reasoning | No ambiguity in task definition |
+| Architectural judgment, ADRs, story authoring | `opus` | `gpt-5.5` high reasoning | Requires reasoning over ambiguous requirements |
+| Final approval, review decisions | `opus` | `gpt-5.5` high reasoning | Approval requires judgment |
+| Story implementation (code, features, refactors) | `sonnet` | `gpt-5.5` medium reasoning | Real coding work at implementation-tier cost |
+| Command execution, PASS/FAIL reporting | `haiku` | `gpt-5.4-mini` low/medium reasoning | Output is determined by command results |
+| Mechanical restructuring, copy operations | `haiku` | `gpt-5.4-mini` low reasoning | No ambiguity in task definition |
+
+Claude aliases track the current lineup (today: Opus 4.8, Sonnet 5, Haiku 4.5) so
+generated projects never pin stale IDs. `fable` (Claude Fable 5) is an opt-in for the
+hardest judgment work only — see `refs/model_routing.md`.
 
 Built-in agents — use as-is. Claude: `Explore`, `Plan`. Codex: `explorer`, `worker`, `default`.
 
@@ -98,7 +102,7 @@ Every agent session follows these six steps:
 | `final-judge` | Judgment | Full repo (read only) | Human-in-the-loop approval authority |
 | `tester` | Deterministic | Read + Bash only | Runs verification commands, writes reports |
 | `architect` | Judgment | Read + write docs/stories | Writes ADRs, design decisions, stories |
-| `dev` | Deterministic | Restricted folder list | Implements stories mechanically |
+| `dev` | Implementation | Restricted folder list | Implements stories within scope |
 
 Additional specialised agents are added per project domain.
 
@@ -106,14 +110,24 @@ Additional specialised agents are added per project domain.
 
 ## Hook Protocol
 
-| Hook | Claude target | Codex target | Action |
-|---|---|---|---|
-| Pre tool use | `pre-tool-use.sh` | `pre_tool_use_policy.py` | Blocks destructive commands; enforces STORY-XXX in commit messages |
-| Post tool use | `post-tool-use.sh` | `post_tool_use_lint.py` | Auto-lints Python (ruff) and JS/TS (eslint) |
-| Stop | `stop.sh` | `stop_session_log.py` | Appends a session record |
+One shared set of Python hook scripts serves both platforms (Claude Code and Codex use
+the same hook stdin-JSON contract). Claude registers them in `.claude/settings.json`;
+Codex registers them in `.codex/hooks.json`.
 
-All generated hook scripts use `exit 2` for hard blocks. Claude registers hooks in
-`settings.json`; Codex registers hooks in `.codex/hooks.json`.
+| Event | Script | Action |
+|---|---|---|
+| SessionStart | `session_start.py` | Injects the Golden Rule and the active story into session context |
+| UserPromptSubmit | `user_prompt_submit.py` | Injects the referenced story's Scope / Out of Scope sections |
+| PreToolUse | `pre_tool_use.py` | Blocks destructive commands; enforces STORY-XXX in commits/pushes; enforces per-agent write scopes from `scopes.json` |
+| PostToolUse | `post_tool_use.py` | Auto-lints Python (ruff) and JS/TS (eslint) on Write/Edit |
+| SubagentStop | `subagent_stop.py` | Appends a handoff-chain record to the session log |
+| PreCompact | `pre_compact.py` | Records active story + branch so state survives compaction |
+| SessionEnd (Claude) / Stop (Codex) | `session_end.py` | Appends a session record |
+
+All generated hook scripts read the hook payload as JSON on stdin and use `exit 2` for
+hard blocks. Codex parity notes: Codex has no `SessionEnd` event (the session record is
+registered on `Stop`, so it fires per turn there), and Codex requires project hooks to be
+reviewed and trusted via `/hooks` before they run.
 
 ---
 

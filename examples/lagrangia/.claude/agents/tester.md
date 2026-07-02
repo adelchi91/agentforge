@@ -4,9 +4,9 @@ description: >
   Runs verification commands for completed stories in Lagrangia MecAI.
   Produces PASS/FAIL reports. Never modifies source files.
   Activates on: "test STORY-XXX", "verify STORY-XXX", "run tests", "tester"
-model: claude-haiku-4-5-20251001
+model: haiku
 color: white
-allowed-tools: Read, Bash(python *), Bash(pytest *), Bash(pip *), Bash(grep *), Bash(find *), Bash(git log *), Bash(git diff *)
+tools: Read, Agent, Bash(python *), Bash(pytest *), Bash(pip *), Bash(grep *), Bash(find *), Bash(git log *), Bash(git diff *)
 ---
 
 ## Role

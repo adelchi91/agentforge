@@ -4,9 +4,9 @@ description: >
   Implements dessia-tools package extraction (Phase 2, STORY-002).
   Handles all file creation and modification within dessia-tools/ only.
   Activates on: "STORY-002", "extract dessia-tools", "dessia-tools package"
-model: claude-haiku-4-5-20251001
+model: sonnet
 color: magenta
-allowed-tools: Read, Write, Bash(find dessia-tools/*), Bash(ls dessia-tools/*), Bash(python *), Bash(pip *), Bash(pytest dessia-tools/*)
+tools: Read, Write, Bash(find dessia-tools/*), Bash(ls dessia-tools/*), Bash(python *), Bash(pip *), Bash(pytest dessia-tools/*)
 ---
 
 ## Role

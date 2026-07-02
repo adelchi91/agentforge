@@ -4,9 +4,9 @@ description: >
   Conducts project intake interview for bootstrap. Handles platform selection and steps 1-4:
   reference documents, context gathering, roadmap planning, persona definition.
   Only active during bootstrap sessions.
-model: claude-sonnet-4-6
+model: inherit
 color: cyan
-allowed-tools: Read, Write, Bash(find *), Bash(ls *), Bash(cat *), Bash(wc *), Agent
+tools: Read, Write, Bash(find *), Bash(ls *), Bash(cat *), Bash(wc *), Agent
 ---
 
 ## Role
@@ -63,9 +63,13 @@ raw bash scans for large codebases.
 
 - Read `.bootstrap/target_platform.md` before proposing personas.
 - Always include: `final-judge` and `tester`.
-- For Claude: judgment → `claude-sonnet-4-6`, deterministic/test → `claude-haiku-4-5-20251001`.
-- For Codex: judgment → `gpt-5.5` with `model_reasoning_effort = high`; deterministic/test/explore → `gpt-5.4-mini` with `model_reasoning_effort = low` or `medium`.
-- For Claude, `tester` must have `Agent` in allowed-tools so it can spawn an Explore subagent to locate test files before running them.
+- For Claude use model aliases (they track the current model lineup): judgment → `opus`,
+  implementation → `sonnet`, deterministic/test → `haiku`.
+- For Codex: judgment → `gpt-5.5` with `model_reasoning_effort = "high"`; implementation →
+  `gpt-5.5` with `model_reasoning_effort = "medium"`; deterministic/test/explore →
+  `gpt-5.4-mini` with `model_reasoning_effort = "low"` or `"medium"`.
+- For Claude, `tester` must have `Agent` in its `tools` list so it can spawn an Explore
+  subagent to locate test files before running them.
 - For Codex, `tester` should be a custom agent with read-heavy instructions and low or medium reasoning.
 - For Codex, assign `sandbox_mode = "read-only"` to reviewer/tester/final-judge agents and `sandbox_mode = "workspace-write"` to implementation agents.
 - Include `architect` if roadmap has design/decision phases.

@@ -4,9 +4,9 @@ description: >
   Implements dessia-memory package extraction (Phase 1).
   Handles all file creation and modification within dessia-memory/ only.
   Activates on: "STORY-001", "extract dessia-memory", "dessia-memory package"
-model: claude-haiku-4-5-20251001
+model: sonnet
 color: cyan
-allowed-tools: Read, Write, Bash(find dessia-memory/*), Bash(ls dessia-memory/*), Bash(python *), Bash(pip *), Bash(pytest dessia-memory/*)
+tools: Read, Write, Bash(find dessia-memory/*), Bash(ls dessia-memory/*), Bash(python *), Bash(pip *), Bash(pytest dessia-memory/*)
 ---
 
 ## Role

@@ -4,9 +4,10 @@ description: >
   Implements mylib features according to the assigned story.
   Handles all file creation within src/mylib/, tests/, and project config.
   Activates on: "work on STORY-XXX", "implement STORY-XXX", "dev", "STORY-001", "STORY-002", "STORY-003", "STORY-004"
-model: claude-haiku-4-5-20251001
+model: sonnet
 color: green
-allowed-tools: Read, Write, Bash(python *), Bash(pip *), Bash(pytest *), Bash(ruff *), Bash(find src/*), Bash(find tests/*)
+tools: Read, Write, Bash(python *), Bash(pip *), Bash(pytest *), Bash(ruff *), Bash(find src/*), Bash(find tests/*)
+skills: [python-packaging]
 ---
 
 ## Role

@@ -11,7 +11,7 @@ They demonstrate what the tool produces after a completed 6-step bootstrap sessi
 
 **Complexity:** High
 - 5 phases
-- 7 agents (4 Sonnet, 3 Haiku)
+- 7 agents (4 opus, 2 sonnet, 1 haiku)
 - 16 stories across phases
 
 **Highlights:**
@@ -31,7 +31,7 @@ industrial-grade projects with non-trivial constraints.
 
 **Complexity:** Low
 - 2 phases
-- 3 agents (1 Sonnet, 2 Haiku)
+- 3 agents (1 opus, 1 sonnet, 1 haiku)
 - 4 stories
 
 **Highlights:**
@@ -62,7 +62,9 @@ This is the **baseline case**. Start here if you are new to the methodology.
 
 All files in these examples were generated from the templates in `../templates/`.
 They show the scaffolder agent's output with every template variable substituted —
-no unfilled placeholders remain. These are production-ready scaffold outputs.
+no unfilled placeholders remain. These are production-ready scaffold outputs,
+including the full hook suite (`hooks/*.py` + `scopes.json`), the hook registration
+(`settings.json` or `hooks.json`), and skill folders.
 
 ## How to Read an Example
 

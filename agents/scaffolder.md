@@ -4,9 +4,9 @@ description: >
   Generates Claude Code or Codex folder structure from bootstrap interview results.
   Reads .bootstrap/ files. Only writes files after explicit GO from user.
   Only active during bootstrap sessions.
-model: claude-sonnet-4-6
+model: inherit
 color: orange
-allowed-tools: Read, Write, Bash(mkdir *), Bash(chmod *)
+tools: Read, Write, Bash(mkdir *), Bash(cp *)
 ---
 
 ## Role
@@ -58,35 +58,49 @@ Exit cleanly. Display: "No files written." Do not create any files.
 
 ## On GO — Claude Execution Order
 
-Execute these steps in order, displaying `✓ [filename]` after each file is written:
+Execute these steps in order, displaying `✓ [filename]` after each file is written.
+Hooks are copied BEFORE `settings.json` is written so no hook registration ever
+points at a missing script.
 
 1. Create all required directories
 2. Generate `.claude/CLAUDE.md` from `templates/claude/CLAUDE_md.md` — fill ALL template variable fields
-3. Generate `.claude/settings.json` from `templates/claude/settings.json`
-4. Generate one agent file per persona from `templates/claude/agent.md`
-5. Generate skill stub files per domain identified in the roadmap from `templates/claude/skill.md`
-6. Copy hook templates from `templates/claude/hooks/` to `.claude/hooks/`
-7. Move all stories from `.bootstrap/stories/` to `.claude/stories/`
-8. Write `project_context.md` to project root
-9. Write `roadmap.md` to project root
-10. Add `.bootstrap/` to `.gitignore` (append if file exists, create if not)
-11. Run: `chmod +x .claude/hooks/*.sh`
+3. Copy the shared hook scripts from `templates/shared/hooks/*.py` to `.claude/hooks/`
+4. Generate `.claude/hooks/scopes.json` from `templates/shared/hooks/scopes.json` — one
+   entry per persona, `allow` lists taken from the Repo Ownership scopes in
+   `.bootstrap/04_personas.md` (read-only agents get an empty `allow` list)
+5. Generate `.claude/settings.json` from `templates/claude/settings.json`
+6. Generate one agent file per persona from `templates/claude/agent.md`
+   (add `permissionMode: plan` to final-judge; `memory: project` to architect agents)
+7. Generate skill folders per domain identified in the roadmap: `.claude/skills/<domain>/SKILL.md`
+   from `templates/claude/skill.md`
+8. Move all stories from `.bootstrap/stories/` to `.claude/stories/`
+9. Write `project_context.md` to project root
+10. Write `roadmap.md` to project root
+11. Add `.bootstrap/` and `.claude/session-log.txt` to `.gitignore` (append if file exists, create if not)
 
 ## On GO — Codex Execution Order
 
-Execute these steps in order, displaying `✓ [filename]` after each file is written:
+Execute these steps in order, displaying `✓ [filename]` after each file is written.
+Hooks are copied BEFORE `hooks.json` is written.
 
 1. Create all required directories
 2. Generate `AGENTS.md` from `templates/codex/AGENTS_md.md` — fill ALL template variable fields
-3. Generate `.codex/hooks.json` from `templates/codex/hooks.json`
-4. Generate one custom agent file per persona in `.codex/agents/*.toml` from `templates/codex/agent.toml`
-5. Generate skill stub files per domain in `.agents/skills/` from `templates/codex/skill.md`
-6. Copy hook scripts from `templates/codex/hooks/` to `.codex/hooks/`
-7. Move all stories from `.bootstrap/stories/` to `.agents/stories/`
-8. Write `project_context.md` to project root
-9. Write `roadmap.md` to project root
-10. Add `.bootstrap/` to `.gitignore` (append if file exists, create if not)
-11. No custom slash prompt is generated; users invoke Codex workflows through skills.
+3. Copy the shared hook scripts from `templates/shared/hooks/*.py` to `.codex/hooks/`
+4. Generate `.codex/hooks/scopes.json` from `templates/shared/hooks/scopes.json` — one
+   entry per persona, `allow` lists from the Repo Ownership scopes (read-only agents get
+   an empty `allow` list)
+5. Generate `.codex/hooks.json` from `templates/codex/hooks.json`
+6. Generate one custom agent file per persona in `.codex/agents/*.toml` from `templates/codex/agent.toml`
+7. Generate skill stub files per domain in `.agents/skills/<domain>/SKILL.md` from `templates/codex/skill.md`
+8. Move all stories from `.bootstrap/stories/` to `.agents/stories/`
+9. Write `project_context.md` to project root
+10. Write `roadmap.md` to project root
+11. Add `.bootstrap/` and `.codex/session-log.txt` to `.gitignore` (append if file exists, create if not)
+12. No custom slash prompt is generated (Codex custom prompts are deprecated); users invoke
+    Codex workflows through skills.
+13. Remind the user in the Done summary: Codex requires project hooks to be reviewed and
+    trusted before they run — run `/hooks` in Codex and approve the generated hooks, and
+    make sure the project is trusted so the `.codex/` layer loads.
 
 ## Template Variable Rules
 
@@ -132,6 +146,10 @@ After all files are written, display the Done summary exactly:
     /story          → add a new story to an existing phase
     /add-agent      → add a new agent
     /project-review → review and update roadmap or personas
+
+  [CODEX target only] Before your first story:
+    Run /hooks in Codex and trust the generated hooks — Codex does not
+    run untrusted project hooks. Ensure this project is marked trusted.
 
   Methodology reference: METHODOLOGY.md
 ────────────────────────────────────────────────────────────────────

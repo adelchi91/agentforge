@@ -1,0 +1,14 @@
+{
+  "name": "agentforge",
+  "owner": {
+    "name": "adelchi91",
+    "url": "https://github.com/adelchi91"
+  },
+  "plugins": [
+    {
+      "name": "project-bootstrap",
+      "source": "./",
+      "description": "Scaffold a complete agentic development environment (constitution, agents, skills, hooks, stories) for Claude Code or Codex in one 6-step interview."
+    }
+  ]
+}

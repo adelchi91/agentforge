@@ -4,9 +4,10 @@ description: >
   Designs the LangGraph multi-agent system architecture for Lagrangia MecAI.
   Writes ADRs, service contracts, and stories for Phase 2 and Phase 4 work.
   Activates on: "design the supervisor", "STORY-003", "STORY-007", "service contract"
-model: claude-sonnet-4-6
+model: opus
 color: blue
-allowed-tools: Read, Write
+memory: project
+tools: Read, Write
 ---
 
 ## Role

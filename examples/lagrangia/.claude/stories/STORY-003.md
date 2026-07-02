@@ -1,7 +1,7 @@
 # STORY-003 — Define YAML Service Contract
 
 ## Status: READY FOR DEVELOPMENT
-## Agent: architect-multiagents (model: claude-sonnet-4-6)
+## Agent: architect-multiagents (model: opus)
 ## Phase: 2 — Extract dessia-tools + YAML contract
 ## Depends on: STORY-002 approved and merged
 ## Estimated effort: 1 session (2–3 hours)

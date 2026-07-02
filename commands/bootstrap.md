@@ -14,7 +14,7 @@ When this skill activates, display the following welcome message exactly:
 
 ```
 ── Project Bootstrap ──────────────────────────────────────────────
-  project-bootstrap v1.0.0
+  project-bootstrap v1.1.0
 
   I'll scaffold a complete agentic development environment
   for either Claude Code or Codex in 6 steps:
@@ -60,6 +60,16 @@ Run Steps 1-6 sequentially in the main session using:
 - `steps/04_personas.md`
 - `steps/05_stories.md`
 - `steps/06_scaffold.md`
+
+## Resource Resolution
+
+The `steps/`, `templates/`, and `refs/` directories ship alongside this command set.
+Resolve them from wherever this command file lives:
+- Installed as a Claude Code plugin → `${CLAUDE_PLUGIN_ROOT}/steps/`, `${CLAUDE_PLUGIN_ROOT}/templates/`, `${CLAUDE_PLUGIN_ROOT}/refs/`
+- Installed via `install.sh` → `.claude/steps/`, `.claude/templates/`, `.claude/refs/`
+- Running from the agentforge repository itself → `steps/`, `templates/`, `refs/` at the repo root
+
+Do not guess alternate locations. If none of these paths exist, stop and report it.
 
 Each step has a validation gate. A user response to one step is not permission to
 continue into later steps.

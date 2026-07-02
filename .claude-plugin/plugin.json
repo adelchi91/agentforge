@@ -1,0 +1,22 @@
+{
+  "name": "project-bootstrap",
+  "displayName": "Project Bootstrap",
+  "version": "1.1.0",
+  "description": "Scaffold a complete agentic development environment (constitution, agents, skills, hooks, stories) for Claude Code or Codex in one 6-step interview.",
+  "author": {
+    "name": "Adelchi Asta",
+    "url": "https://github.com/adelchi91"
+  },
+  "homepage": "https://github.com/adelchi91/agentforge",
+  "repository": "https://github.com/adelchi91/agentforge",
+  "license": "MIT",
+  "keywords": [
+    "bootstrap",
+    "scaffolding",
+    "methodology",
+    "agents",
+    "stories",
+    "hooks",
+    "codex"
+  ]
+}

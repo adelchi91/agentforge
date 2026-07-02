@@ -1,7 +1,7 @@
 # STORY-001 — Scaffold Python Package
 
 ## Status: READY FOR DEVELOPMENT
-## Agent: dev (model: gpt-5.4-mini)
+## Agent: dev (model: gpt-5.5)
 ## Phase: 1 — Foundation
 ## Depends on: none
 ## Estimated effort: S

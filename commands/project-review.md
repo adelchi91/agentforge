@@ -4,7 +4,6 @@ description: >
   Review and update the roadmap or agent personas in an existing bootstrapped project.
   Triggers on: "update roadmap", "review personas", "revise agents", "update phases",
   "change my roadmap", "/project-review"
-agent: interviewer
 ---
 
 ## Purpose

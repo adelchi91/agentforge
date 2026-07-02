@@ -4,9 +4,10 @@ description: >
   Reviews dessiaworker public API and writes Phase 5 refactoring stories.
   Read-only access to dessiaworker. Never modifies implementation files.
   Activates on: "dessiaworker", "STORY-013", "STORY-014", "STORY-015", "STORY-016"
-model: claude-sonnet-4-6
+model: opus
 color: yellow
-allowed-tools: Read, Write
+memory: project
+tools: Read, Write
 ---
 
 ## Role

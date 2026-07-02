@@ -10,8 +10,22 @@ from day one. It works on greenfield projects and existing codebases alike.
 
 ## Install
 
+### Claude Code (recommended): plugin install
+
+```
+/plugin marketplace add adelchi91/agentforge
+/plugin install project-bootstrap@agentforge
+```
+
+The plugin bundles the `/bootstrap`, `/story`, `/add-agent`, and `/project-review`
+commands, the bootstrap agents, and all templates. Plugin installs are versioned and
+update through `/plugin` — no files are copied into your repo until you run `/bootstrap`
+and type `GO`.
+
+### Script install (Codex, or Claude without plugins)
+
 ```bash
-# From your project root:
+# From your project root — Claude bootstrap into .claude/:
 curl -sL https://raw.githubusercontent.com/adelchi91/agentforge/main/install.sh | bash
 
 # Codex skill only:
@@ -21,7 +35,6 @@ curl -sL https://raw.githubusercontent.com/adelchi91/agentforge/main/install.sh 
 curl -sL https://raw.githubusercontent.com/adelchi91/agentforge/main/install.sh | bash -s -- both
 ```
 
-The default keeps backward compatibility and installs the Claude bootstrap into `.claude/`.
 The Codex install adds a repo-scoped skill at `.agents/skills/project-bootstrap/` with the
 same bootstrap resources bundled beside it.
 
@@ -56,13 +69,18 @@ The 6-step flow:
 ```
 .claude/
 ├── CLAUDE.md                  ← project constitution
-├── settings.json              ← agent permissions + hooks
-├── agents/                    ← one .md per persona
-├── skills/                    ← knowledge chunks per domain
+├── settings.json              ← permissions + hook registration
+├── agents/                    ← one .md per persona (aliased models, scoped tools)
+├── skills/                    ← knowledge chunks per domain (<domain>/SKILL.md)
 ├── hooks/
-│   ├── pre-tool-use.sh        ← safety guardrails (blocks destructive commands)
-│   ├── post-tool-use.sh       ← auto-lint on Write (ruff, eslint)
-│   └── stop.sh                ← session summary on end
+│   ├── pre_tool_use.py        ← blocks destructive commands + enforces agent scopes
+│   ├── post_tool_use.py       ← auto-lint on Write/Edit (ruff, eslint)
+│   ├── session_start.py       ← injects golden rule + active story
+│   ├── user_prompt_submit.py  ← injects story scope when STORY-XXX is mentioned
+│   ├── subagent_stop.py       ← handoff-chain audit log
+│   ├── pre_compact.py         ← preserves story state across compaction
+│   ├── session_end.py         ← session record
+│   └── scopes.json            ← agent → allowed-folders map
 └── stories/
     └── STORY-XXX.md           ← one per unit of work
 
@@ -77,19 +95,24 @@ AGENTS.md                      ← project constitution
 .codex/
 ├── hooks.json                  ← hook registration
 ├── agents/                     ← one .toml custom agent per persona
-└── hooks/
-    ├── pre_tool_use_policy.py  ← safety guardrails
-    ├── post_tool_use_lint.py   ← targeted auto-lint
-    └── stop_session_log.py     ← session summary on end
+└── hooks/                      ← same shared Python hook suite as the Claude target
+    ├── pre_tool_use.py         ← safety guardrails + agent scope enforcement
+    ├── post_tool_use.py        ← targeted auto-lint
+    ├── session_start.py / user_prompt_submit.py / subagent_stop.py / pre_compact.py
+    ├── session_end.py          ← session record (registered on Stop)
+    └── scopes.json             ← agent → allowed-folders map
 
 .agents/
-├── skills/                     ← knowledge chunks per domain
+├── skills/                     ← knowledge chunks per domain (<domain>/SKILL.md)
 └── stories/
     └── STORY-XXX.md            ← one per unit of work
 
 project_context.md             ← persisted intake answers
 roadmap.md                     ← phase plan
 ```
+
+After a Codex scaffold, run `/hooks` in Codex and trust the generated hooks —
+Codex does not run untrusted project hooks.
 
 ## Sub-commands
 
