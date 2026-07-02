@@ -12,15 +12,36 @@ from day one. It works on greenfield projects and existing codebases alike.
 
 ### Claude Code (recommended): plugin install
 
+Inside a Claude Code session:
+
 ```
 /plugin marketplace add adelchi91/agentforge
 /plugin install project-bootstrap@agentforge
 ```
 
-The plugin bundles the `/bootstrap`, `/story`, `/add-agent`, and `/project-review`
-commands, the bootstrap agents, and all templates. Plugin installs are versioned and
-update through `/plugin` — no files are copied into your repo until you run `/bootstrap`
-and type `GO`.
+Or from the terminal:
+
+```bash
+claude plugin marketplace add adelchi91/agentforge
+claude plugin install project-bootstrap@agentforge
+```
+
+The plugin bundles 4 commands (`/bootstrap`, `/story`, `/add-agent`, `/project-review`),
+the 3 bootstrap agents (interviewer, planner, scaffolder), and all templates. It installs
+at user scope, so the commands work from any project directory. It adds roughly 550
+always-on tokens to each session. No files are copied into your repo until you run
+`/bootstrap` and type `GO`.
+
+Managing the plugin:
+
+```bash
+# Update to the latest published version
+claude plugin marketplace update agentforge
+claude plugin update project-bootstrap
+
+# Uninstall (or use the /plugin menu inside a session to disable/uninstall)
+claude plugin uninstall project-bootstrap@agentforge
+```
 
 ### Script install (Codex, or Claude without plugins)
 
@@ -114,15 +135,30 @@ roadmap.md                     ← phase plan
 After a Codex scaffold, run `/hooks` in Codex and trust the generated hooks —
 Codex does not run untrusted project hooks.
 
-## Sub-commands
+## Commands
 
-```
-/bootstrap         → start the 6-step flow from Claude Code; choose CLAUDE or CODEX
-$project-bootstrap → start the 6-step flow from Codex; choose CLAUDE or CODEX
-/story            → add a story to an existing phase
-/add-agent        → add a new agent
-/project-review   → update roadmap or personas
-```
+| Command | Usage | When to use it |
+|---|---|---|
+| `/bootstrap` | `/bootstrap` | Scaffold a new or existing project via the 6-step interview. Gates: `OK` advances a step, `BACK` revisits the previous one, `CANCEL` exits cleanly, and `GO` (valid only at the Step 6 checkpoint) writes the scaffold. Nothing touches your repo before that `GO`. Works from any project directory once the plugin is installed. |
+| `/story` | `/story [short description of the work]` | Add a story to an existing bootstrapped project — picks the phase, assigns an agent, numbers it sequentially, and writes it after your `GO`. |
+| `/add-agent` | `/add-agent [agent role]` | Add a new agent persona — applies the model routing rules, generates the agent file, and updates `scopes.json` so the scope-enforcement hook covers the new agent. |
+| `/project-review` | `/project-review` | Revise the roadmap or the agent personas of an already-bootstrapped project. |
+| `$project-bootstrap` | (in Codex) | The Codex skill surface — runs the same 6-step flow with the same gates, and can scaffold either the `CLAUDE` or `CODEX` target. |
+
+## Working a bootstrapped project
+
+Day-2 vocabulary, once the scaffold exists:
+
+- `Work on STORY-XXX.` — the assigned agent implements the story within its declared scope
+- `Test STORY-XXX.` — the tester runs the story's verification commands and reports PASS/FAIL
+- `Review STORY-XXX.` — the final-judge checks acceptance criteria and approves or rejects
+
+The generated hooks enforce the methodology deterministically, regardless of what any
+agent is instructed to do: destructive commands are blocked, every `git commit` and push
+must reference a STORY-XXX, and each agent may only Write/Edit inside the folders assigned
+to it in `.claude/hooks/scopes.json` (or `.codex/hooks/scopes.json`). On the Codex target,
+remember to run `/hooks` and trust the generated hooks first — Codex does not run
+untrusted project hooks.
 
 ## Examples
 
