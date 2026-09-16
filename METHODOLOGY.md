@@ -173,7 +173,7 @@ Claude hooks are registered in `.claude/settings.json`; Codex hooks are register
 | SessionStart | `session_start.py` | Injects the Golden Rule and the active story into session context |
 | UserPromptSubmit | `user_prompt_submit.py` | When the prompt references STORY-XXX, injects that story's Scope / Out of Scope |
 | PreToolUse | `pre_tool_use.py` | Blocks destructive commands; enforces STORY-XXX in commits and pushes; enforces per-agent write scopes from `scopes.json` |
-| PostToolUse | `post_tool_use.py` | Auto-lints Python (ruff) and JavaScript/TypeScript (eslint) on Write/Edit, if available |
+| PostToolUse | `post_tool_use.py` | Off by default; reports (never mutates) ruff/eslint check results on Write/Edit/MultiEdit only when `.agentforge/config.json`'s `quality.post_edit` is `"report"` |
 | SubagentStop | `subagent_stop.py` | Appends a handoff-chain record (agent + story) to the session log |
 | PreCompact | `pre_compact.py` | Records active story and branch so state survives context compaction |
 | SessionEnd (Claude) / Stop (Codex) | `session_end.py` | Appends a session record |
