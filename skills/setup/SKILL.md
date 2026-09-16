@@ -117,6 +117,54 @@ Report the final list of files changed (and note that a second, identical
 run of this skill will show every entry as `"none"` — setup is
 idempotent).
 
+## Optional: bundled capability agents (not part of the setup transaction)
+
+AgentForge bundles two optional subagents — `independent-reviewer` and
+`verifier` (`agents/independent-reviewer.md`, `agents/verifier.md`). They
+are read-only and run-only-declared-commands respectively; see
+`docs/agents-capabilities.md` for the full comparison against a permanent
+generated persona.
+
+- **`independent-reviewer`** is worth reaching for when you want a second
+  opinion from a context window with no memory of why the code was written
+  that way, and with tool grants that make it structurally impossible for
+  it to "fix while reviewing" (no `Write`/`Edit`, only `Read`/`Grep`/`Glob`
+  and a short read-only `Bash` allow-list). Reach for it on a
+  higher-stakes diff or a spec-compliance check, not on every routine
+  change — Matt Pocock's `code-review` skill remains the everyday tool for
+  that.
+- **`verifier`** is worth reaching for when you want tamper-proof
+  confirmation that "done" is actually true: it runs only the commands the
+  active work contract declares (or commands you name explicitly) and
+  cannot edit anything, so a PASS report cannot be the result of a patch
+  applied after the fact.
+
+Both ship inside the plugin and are available the moment AgentForge is
+installed, the same way `Explore` and `Plan` are always available — no
+project file is required to invoke either one; a project simply calls
+`Agent(subagent_type="agentforge:independent-reviewer", ...)` or
+`Agent(subagent_type="agentforge:verifier", ...)` when it wants one.
+
+**Neither agent is part of the `/agentforge:setup` transaction above.**
+`plan`/`apply` never propose or write a file under `agents/`, `.claude/agents/`,
+or `.codex/agents/`, and `templates/agentforge-config.json` ships with
+`scope.agents: {}` — a default setup run enables neither agent and
+generates no project-specific persona file. Both stay off by default.
+
+If a project later adopts the graded scope-policy engine (STORY-013/014)
+and wants to track one of these agents' identity there, that is a
+separate, explicit edit to the already-committed `.agentforge/config.json`
+— add an entry under `scope.agents` keyed by the agent's exact frontmatter
+`name` (`independent-reviewer` or `verifier`), for example:
+
+```json
+{ "scope": { "mode": "off", "agents": { "verifier": { "allow": ["tests/"] } } } }
+```
+
+This is documentation of an existing, already-validated config shape
+(`${CLAUDE_PLUGIN_ROOT}/scripts/config.py`, STORY-004) — not a new setup
+step, and not something `/agentforge:setup` writes on your behalf.
+
 ## What this skill does not do
 
 - It never edits both `CLAUDE.md` and `AGENTS.md`; when both exist it
