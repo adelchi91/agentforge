@@ -1,0 +1,14 @@
+{
+  "name": "fake-upstream",
+  "description": "Local, offline marketplace fixture standing in for a real upstream marketplace in tests/integration/test_plugin_coexistence.py.",
+  "owner": {
+    "name": "agentforge-tests"
+  },
+  "plugins": [
+    {
+      "name": "fake-upstream-skills",
+      "source": "./",
+      "description": "Deterministic stand-in for a third-party companion plugin, used only by AgentForge's coexistence tests."
+    }
+  ]
+}

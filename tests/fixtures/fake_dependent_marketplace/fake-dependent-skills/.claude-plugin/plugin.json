@@ -1,0 +1,11 @@
+{
+  "name": "fake-dependent-skills",
+  "displayName": "Fake Dependent Skills",
+  "version": "1.0.0",
+  "description": "Fixture plugin declaring an unversioned, marketplace-qualified dependency on fake-upstream-skills@fake-upstream, used only by tests/integration/test_plugin_coexistence.py to exercise the dependency mechanism deterministically.",
+  "author": { "name": "agentforge-tests" },
+  "license": "MIT",
+  "dependencies": [
+    { "name": "fake-upstream-skills", "marketplace": "fake-upstream" }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "fake-dependent-incompatible-skills",
+  "displayName": "Fake Dependent Incompatible Skills",
+  "version": "1.0.0",
+  "description": "Fixture plugin declaring a dependency on fake-upstream-skills@fake-upstream at a version range no fixture release satisfies, used only by tests/integration/test_plugin_coexistence.py to exercise the incompatible-version scenario deterministically.",
+  "author": { "name": "agentforge-tests" },
+  "license": "MIT",
+  "dependencies": [
+    { "name": "fake-upstream-skills", "marketplace": "fake-upstream", "version": "^99.0.0" }
+  ]
+}

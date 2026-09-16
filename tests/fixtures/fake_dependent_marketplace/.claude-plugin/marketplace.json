@@ -1,0 +1,17 @@
+{
+  "name": "fake-dependent",
+  "description": "Local, offline marketplace fixture with plugins that declare a dependency, used only by tests/integration/test_plugin_coexistence.py to exercise the dependency mechanism deterministically.",
+  "owner": { "name": "agentforge-tests" },
+  "plugins": [
+    {
+      "name": "fake-dependent-skills",
+      "source": "./fake-dependent-skills",
+      "description": "Fixture plugin declaring an unversioned dependency on fake-upstream-skills@fake-upstream."
+    },
+    {
+      "name": "fake-dependent-incompatible-skills",
+      "source": "./fake-dependent-incompatible-skills",
+      "description": "Fixture plugin declaring a dependency on fake-upstream-skills@fake-upstream at an incompatible version range."
+    }
+  ]
+}

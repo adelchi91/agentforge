@@ -1,0 +1,8 @@
+{
+  "name": "fake-upstream-skills",
+  "displayName": "Fake Upstream Skills",
+  "version": "1.0.0",
+  "description": "Deterministic stand-in for a third-party companion plugin (e.g. mattpocock-skills), used only by tests/integration/test_plugin_coexistence.py so coexistence mechanics can be exercised offline without depending on mattpocock/skills or the network.",
+  "author": { "name": "agentforge-tests" },
+  "license": "MIT"
+}

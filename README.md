@@ -33,8 +33,15 @@ always-on tokens to each session. No files are copied into your repo until you r
 `/bootstrap` and type `GO`.
 
 > **Upgrading from `project-bootstrap`?** The plugin was renamed to `agentforge`
-> (see `CHANGELOG.md`). Uninstall the old name and install the new one:
-> `claude plugin uninstall project-bootstrap@agentforge && claude plugin install agentforge@agentforge`.
+> (see `CHANGELOG.md`). The marketplace's `renames` entry is discovery metadata
+> only — it does not migrate an existing install automatically (tested in
+> STORY-003; see `docs/compatibility.md`). Migrate in this order, which leaves
+> no duplicate or orphaned install:
+> ```bash
+> claude plugin uninstall project-bootstrap@agentforge -y
+> claude plugin marketplace update agentforge
+> claude plugin install agentforge@agentforge -y
+> ```
 > Everything else — commands, agents, templates — is unchanged.
 
 Managing the plugin:
@@ -47,6 +54,29 @@ claude plugin update agentforge
 # Uninstall (or use the /plugin menu inside a session to disable/uninstall)
 claude plugin uninstall agentforge@agentforge
 ```
+
+### Using AgentForge alongside mattpocock-skills
+
+AgentForge v2 is a thin governance companion to
+[Matt Pocock's engineering skills](https://github.com/mattpocock/skills)
+(grilling, spec/ticket flows, TDD, code review, and more) — see
+`docs/adr/0001-companion-not-fork.md`. It never vendors or forks his
+plugin. Install both as two independent steps:
+
+```bash
+claude plugin marketplace add anthropics/claude-plugins-official
+claude plugin install mattpocock-skills@claude-plugins-official --scope user
+
+claude plugin marketplace add adelchi91/agentforge
+claude plugin install agentforge@agentforge --scope user
+```
+
+Order doesn't matter, and each plugin can be uninstalled, updated, or
+reinstalled independently — AgentForge's manifest declares no dependency
+on `mattpocock-skills`. `docs/compatibility.md` records the empirical
+testing behind that decision (cross-marketplace dependency resolution was
+tried and found unreliable) and the full 8-scenario coexistence test
+matrix.
 
 ### Script install (Codex, or Claude without plugins)
 
