@@ -16,14 +16,14 @@ Inside a Claude Code session:
 
 ```
 /plugin marketplace add adelchi91/agentforge
-/plugin install project-bootstrap@agentforge
+/plugin install agentforge@agentforge
 ```
 
 Or from the terminal:
 
 ```bash
 claude plugin marketplace add adelchi91/agentforge
-claude plugin install project-bootstrap@agentforge
+claude plugin install agentforge@agentforge
 ```
 
 The plugin bundles 4 commands (`/bootstrap`, `/story`, `/add-agent`, `/project-review`),
@@ -32,15 +32,20 @@ at user scope, so the commands work from any project directory. It adds roughly 
 always-on tokens to each session. No files are copied into your repo until you run
 `/bootstrap` and type `GO`.
 
+> **Upgrading from `project-bootstrap`?** The plugin was renamed to `agentforge`
+> (see `CHANGELOG.md`). Uninstall the old name and install the new one:
+> `claude plugin uninstall project-bootstrap@agentforge && claude plugin install agentforge@agentforge`.
+> Everything else — commands, agents, templates — is unchanged.
+
 Managing the plugin:
 
 ```bash
 # Update to the latest published version
 claude plugin marketplace update agentforge
-claude plugin update project-bootstrap
+claude plugin update agentforge
 
 # Uninstall (or use the /plugin menu inside a session to disable/uninstall)
-claude plugin uninstall project-bootstrap@agentforge
+claude plugin uninstall agentforge@agentforge
 ```
 
 ### Script install (Codex, or Claude without plugins)

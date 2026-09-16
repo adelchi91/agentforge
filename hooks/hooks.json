@@ -1,0 +1,4 @@
+{
+  "description": "AgentForge lifecycle hooks. Empty until STORY-009 (SessionStart restore) and STORY-010 (UserPromptSubmit injection) add entries; scripts are always invoked via ${CLAUDE_PLUGIN_ROOT}/scripts/.",
+  "hooks": {}
+}
