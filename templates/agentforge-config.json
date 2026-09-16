@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "tracker": {
+    "type": "local",
+    "local_root": "docs/work-items"
+  },
+  "identifier": {
+    "pattern": "^STORY-\\d{3,}$",
+    "examples": ["STORY-001", "STORY-042"]
+  },
+  "context": {
+    "max_bytes": 8000
+  },
+  "traceability": {
+    "mode": "off"
+  },
+  "scope": {
+    "mode": "off",
+    "agents": {}
+  },
+  "migration_policy": {
+    "enabled": false
+  },
+  "quality": {
+    "post_edit": "off"
+  }
+}

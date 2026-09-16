@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "tracker": {
+    "type": "github",
+    "repository": "adelchi91/agentforge"
+  },
+  "identifier": {
+    "pattern": "^#\\d+$",
+    "examples": ["#1", "#123"]
+  },
+  "context": {
+    "max_bytes": 8000
+  },
+  "traceability": {
+    "mode": "observe"
+  },
+  "scope": {
+    "mode": "off",
+    "agents": {}
+  },
+  "migration_policy": {
+    "enabled": false
+  },
+  "quality": {
+    "post_edit": "off"
+  }
+}
