@@ -1,4 +1,16 @@
 {
-  "description": "AgentForge lifecycle hooks. Empty until STORY-009 (SessionStart restore) and STORY-010 (UserPromptSubmit injection) add entries; scripts are always invoked via ${CLAUDE_PLUGIN_ROOT}/scripts/.",
-  "hooks": {}
+  "description": "AgentForge lifecycle hooks. PreToolUse wires the STORY-013 graded command-policy engine (scripts/scope_policy.py); SessionStart (STORY-009) and UserPromptSubmit (STORY-010) entries are added later. Scripts are always invoked via ${CLAUDE_PLUGIN_ROOT}/scripts/.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/scope_policy.py\""
+          }
+        ]
+      }
+    ]
+  }
 }
