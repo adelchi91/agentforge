@@ -192,7 +192,217 @@ is STORY-011/STORY-012's job, validated against the real message
 file/commit range by Git hooks, not against whatever else happens to
 appear on the same Bash command line.
 
-## Never re-executes the command under test
+## Commit-message traceability (STORY-011)
+
+`scripts/git_policy.py` plus the installed `templates/git-hooks/commit-msg`
+script are the actual enforcement boundary this document's table above
+already names for "Commit-message / pushed-commit traceability" — a real
+Git `commit-msg` hook that Git itself invokes with the path to the actual
+commit message file, never a PreToolUse scan of shell-command text. This
+closes the exact v1 gap characterized in
+`tests/test_v1_characterization.py::StoryTokenOutsideMessageTests` (a
+STORY-XXX token anywhere in the raw Bash command line — e.g. an unrelated
+`--file=STORY-001.md` argument — satisfied the old check even though the
+actual `-m` message had no reference) and
+`::GitDashCPushBypassTests` (`git -C <dir> push` bypassing a regex that
+only matched `git push` with no separating flag). A real Git hook has no
+such gap: Git invokes `commit-msg` for `git commit`, `git -C <dir>
+commit`, a shell alias, `git commit -F <file>` (the GUI-client shape), and
+`git merge`, regardless of how the command was spelled, because Git
+itself — not this module — decides when to run it.
+
+AgentForge intentionally added **no** PreToolUse early-warning check for
+commit traceability in this story. `scope_policy.py` already documents,
+above, that it has "no work-item token matching" at all, and the exact
+reason given there — a token match against shell-command text is the v1
+bug, not a mitigation for it — applies with equal force to a
+would-be non-authoritative PreToolUse warning for `git commit`. Adding one
+would either (a) re-implement the same fragile shell-text heuristic this
+story exists to retire, or (b) require parsing the real `-m`/`-F` message
+out of an arbitrary shell command line, which is exactly the "cannot be
+reliably classified with regex" problem risk #4 already describes for
+Bash generally. The Git `commit-msg` hook already gives same-commit
+feedback (it runs before the commit is created, so a rejected commit never
+lands in the object database) without that risk, so no separate
+lifecycle-hook layer was added on top of it.
+
+### What is checked, and how
+
+- The hook receives `$1`, the path to a temporary file containing the
+  actual proposed commit message. `git_policy.check_commit_message_file`
+  reads that file's bytes directly — it never inspects `sys.argv`,
+  `$BASH_COMMAND`, or any other shell context.
+- The message is checked against `.agentforge/config.json`'s
+  `identifier.pattern` (STORY-004), using the same `re.fullmatch`
+  semantics `scripts/config.py` and `scripts/work_items.py` already use
+  for that field (see `docs/agentforge-config.md`): a whitespace-delimited
+  token (edge punctuation like `:`, `.`, `()` stripped) must fullmatch the
+  pattern somewhere in the message. This is one generic mechanism driven
+  entirely by the project's own configured pattern — GitHub's `"^#\\d+$"`,
+  a cross-repo `"^[\\w.-]+/[\\w.-]+#\\d+$"`, GitLab's `"^#\\d+$"`, and a
+  local project's `"^STORY-\\d{3,}$"` are all the same code path, never a
+  hardcoded per-provider regex.
+- `traceability.mode` (STORY-004) gates behavior exactly as documented
+  there: `off` performs no check at all; `observe` runs the check and
+  reports the result but never blocks the commit (`ValidationResult.ok`
+  can be `False` while `.blocking` is `False`); `enforce` blocks a
+  noncompliant commit with a nonzero hook exit code.
+- A missing `.agentforge/config.json` is treated as "AgentForge is not
+  configured for this project" and never blocks a commit. An existing but
+  *invalid* config fails closed regardless of `traceability.mode` — this
+  hook is the documented "Git-hook policy check" example in
+  `scripts/config.py`'s own module docstring for when an enforcement
+  caller must receive a hard validation failure, not a silent fallback.
+  An unreadable config (permission error, or a TOCTOU race between the
+  existence check and the read) fails closed the same way, never with an
+  uncaught traceback.
+- `strip_comment_lines` only recognizes `#` as the comment character
+  (Git's own default `core.commentChar`) and the exact `git commit -v`
+  scissors line. A project that has changed `core.commentChar` to
+  something else gets no special handling for that character — its
+  editor-template comment lines are scanned like ordinary message text
+  instead of being stripped. This is a narrow, known limitation (a
+  non-default `core.commentChar` is uncommon) rather than a full
+  reimplementation of Git's own cleanup logic, which would require this
+  module to read the project's Git config on every invocation.
+
+### Exemptions are narrow and hardcoded, not project-configurable
+
+The only default exemption is Git's own auto-generated merge-commit
+subject shapes (`Merge branch '...'`, `Merge remote-tracking branch
+'...'`, `Merge tag '...'`), matched by `is_git_merge_commit`. This is
+deliberately narrow, per the execution plan's decision that default
+exemptions must stay narrow:
+
+- A GitHub/GitLab server-side "Merge pull request #42 from ..." message is
+  **not** exempt — that text is a hosting-provider convention, not
+  something Git itself generates, and it commonly already carries the
+  original branch's own identifier reference in its body regardless.
+- A `git revert` commit ("Revert \"...\"") is **not** exempt — reverting
+  is a deliberate, authored action with real consequences, and the
+  execution plan lists it only as an example of a class a project *could*
+  choose to exempt, not a default.
+- There is currently no way for a project to widen this list via
+  `.agentforge/config.json`. `scripts/config.py`'s `traceability` schema
+  (STORY-004) has only a `mode` field; adding a project-configurable
+  exemption list (e.g. `traceability.exempt_merge_commits` or a custom
+  regex list) would require extending that closed schema, which is
+  outside this story's stated scope (`scripts/config.py` is not among the
+  files STORY-011 is scoped to touch). This is a known, intentionally
+  deferred gap — see this story's final report for the explicit
+  cross-story note — not an oversight.
+
+### Bypass instructions and limitations (read this before relying on this layer)
+
+A **local** Git hook is a client-side mechanism. None of the following
+can be prevented by `commit-msg` alone, and every one of them is a real,
+available bypass:
+
+- **`git commit --no-verify`** (or `-n`) skips every local hook, including
+  this one, unconditionally. This is Git's own documented escape hatch,
+  not a bug in this module.
+- **An uninstalled hook.** A fresh `git clone` has no hooks at all until
+  `scripts/git_policy.py install` (or the equivalent setup flow) has been
+  run against that checkout; hooks are never transmitted by `git clone`
+  or `git pull`.
+- **`core.hooksPath` pointed elsewhere (or unset) by local config.**
+  Anyone with write access to the repository's own Git config can redirect
+  or remove hook enforcement for their own clone.
+- **Server-side / API commits.** A commit created through a hosting
+  provider's web UI or REST/GraphQL API (e.g. GitHub's "edit this file"
+  button, `createCommitOnBranch`) never runs any local Git hook, because
+  no local Git client is involved at all.
+- **A stale or moved plugin installation.** The installed hook script has
+  this AgentForge checkout's absolute `scripts/` directory baked in at
+  install time (`${CLAUDE_PLUGIN_ROOT}` is only defined inside a live
+  Claude Code session, so the hook cannot rely on it at commit time — see
+  `render_hook_script`'s docstring). If the plugin is reinstalled at a
+  different path, the hook fails open (prints a warning, exits 0) rather
+  than blocking every commit — re-run the installer after any plugin
+  relocation.
+- **Retroactive history rewrites.** `commit-msg` validates a message at
+  the moment a commit is *created*. It says nothing about a commit that
+  is later amended, rebased, or cherry-picked with `--no-verify`, and it
+  never inspects history that already exists. Validating every commit in
+  an outgoing push range is STORY-012's explicit scope, not this one's.
+
+**The mitigation for all of the above is the CI-only fallback**
+(`python3 scripts/git_policy.py check-commit <sha> --project-root
+<checkout>`), run as a required status check under branch protection. A
+local hook is same-commit UX and defense in depth; a server-side/CI check
+that a human cannot silently opt out of on their own machine is the only
+layer here that approaches a real boundary, and even it only covers
+commits it is actually invoked against (STORY-012 covers push ranges;
+STORY-020 covers wiring it into CI).
+
+### Existing hook managers are detected, never silently overwritten
+
+`plan_hook_install`/`apply_hook_install` reuse
+`scripts.setup.detect_hook_managers` (STORY-005) rather than re-deriving
+Husky/`pre-commit`/`core.hooksPath` detection, and always resolve one of
+exactly three outcomes:
+
+- **`chained`** — no other hook manager was detected. If an existing,
+  unrecognized `commit-msg` script is already present at the resolved
+  hooks directory, it is renamed to `commit-msg.pre-agentforge` and the
+  installed AgentForge hook runs it first, aborting the commit if it
+  fails, before running its own check. The renamed file keeps its
+  original permission bits exactly — if it was not executable (Git
+  itself silently ignores a non-executable hook, so this is the "already
+  dormant" state), the backup stays non-executable and is never chained,
+  rather than AgentForge reactivating a hook Git had been correctly
+  ignoring. Re-running the installer is idempotent: an already-
+  AgentForge-managed hook (detected by an exact marker string) is simply
+  rewritten, and an existing backup is never clobbered by a second
+  install.
+- **`manual`** — Husky (`.husky/`) or the `pre-commit` framework
+  (`.pre-commit-config.yaml`) was detected. Nothing is written; documented
+  instructions for adding the same check into that tool's own
+  configuration are returned instead, because those tools manage their
+  hook files in ways an automatic overwrite from outside could conflict
+  with.
+- **`ci_only`** — the target is not a usable Git working tree at all (or
+  `git` itself is unavailable), so no local hook can be installed;
+  instructions for the CI fallback are returned instead.
+
+The resolved install location is always the *effective* Git hooks
+directory (`git rev-parse --git-path hooks`, run inside `project_root`) —
+this correctly resolves a configured `core.hooksPath`, and, critically,
+the *shared* hooks directory of a Git worktree, where `.git` is a file
+(not a directory) pointing at `<main-repo>/.git/worktrees/<name>` rather
+than containing a `hooks/` subdirectory of its own. This story's own
+implementation checkout is itself such a worktree, and
+`tests/test_git_hook_installation.py::WorktreeTests` exercises that
+layout explicitly rather than only asserting it in the abstract.
+
+### Findings from independent code review
+
+STORY-011's implementation went through Matt's two-axis code review
+(Standards + Spec) against the pre-story baseline before being committed.
+Confirmed correctness findings were fixed and covered by a new regression
+test in the same pass: the octopus-merge exemption gap (`is_git_merge_commit`
+missing the plural "Merge branches '...' and '...'" shape), the
+executable-bit reactivation bug described above, the uncaught
+`UnicodeDecodeError` in `check_commit` on a non-UTF-8 message, and the
+uncaught `OSError` in `load_project_config` on an unreadable config file.
+
+Two review findings were deliberately **not** actioned, and are recorded
+here rather than silently dropped:
+
+- **A Claude/Codex PreToolUse early-warning check.** The task scoping
+  this story explicitly marks this "(optional, early-UX-only)", and this
+  document's own "No work-item token matching" reasoning for
+  `scope_policy.py` applies with equal force here: any such check would
+  either reintroduce the fragile shell-text heuristic this story exists
+  to retire, or require parsing a real message out of an arbitrary shell
+  command line (execution-plan risk #4). No PreToolUse warning was added.
+- **A `.agentforge/config.json`-driven exemption list** (e.g. letting a
+  project opt `revert` commits, or a custom regex, into the exemption
+  set). This would require extending `scripts/config.py`'s closed
+  `traceability` schema, which this story's own stated scope excludes
+  (`scripts/config.py` is not among the files STORY-011 is scoped to
+  touch). Recorded as a cross-story gap for whichever later story extends
+  that schema, per the "Exemptions" section above.
 
 Every classification in this module is pure Python string/token analysis
 (`shlex.split` plus regex) over the command text. It never builds a

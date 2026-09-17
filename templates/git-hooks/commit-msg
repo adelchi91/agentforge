@@ -1,0 +1,49 @@
+#!/bin/sh
+# Managed by AgentForge (STORY-011) -- do not hand-edit; re-run the installer to update.
+#
+# Real Git commit-msg hook: validates the actual commit message file Git
+# passes as $1, using scripts/git_policy.py's identifier check against the
+# project's .agentforge/config.json. This is the source-of-truth
+# enforcement layer (docs/adr/0004-hooks-are-guardrails.md, execution
+# plan decision #1) -- unlike a Claude/Codex PreToolUse check, it fires
+# for every commit that reaches this repository's Git object database
+# regardless of what created it: `git commit`, `git -C <dir> commit`, a
+# shell alias, a GUI client (SourceTree, VS Code, GitHub Desktop, ...), or
+# a script -- because Git itself invokes this file, not the tool that
+# asked Git to commit.
+#
+# AGENTFORGE_SCRIPTS_DIR is baked in by the installer at install time
+# (scripts/git_policy.py's `render_hook_script`), not resolved at commit
+# time, because ${CLAUDE_PLUGIN_ROOT} only exists inside a live Claude
+# Code session -- this hook must also work for a bare terminal `git
+# commit` or a GUI client with no AgentForge session running at all.
+AGENTFORGE_SCRIPTS_DIR="__AGENTFORGE_SCRIPTS_DIR__"
+
+HOOK_DIR=$(dirname "$0")
+
+# Chain to a hook that was already installed here before AgentForge's
+# installer ran (renamed to commit-msg.pre-agentforge at install time).
+# Never silently replace another tool's hook: if it fails, this commit is
+# rejected exactly as it would have been without AgentForge involved.
+if [ -x "$HOOK_DIR/commit-msg.pre-agentforge" ]; then
+    "$HOOK_DIR/commit-msg.pre-agentforge" "$1"
+    status=$?
+    if [ "$status" -ne 0 ]; then
+        exit "$status"
+    fi
+fi
+
+if [ ! -f "$AGENTFORGE_SCRIPTS_DIR/git_policy.py" ]; then
+    echo "agentforge commit-msg: AGENTFORGE_SCRIPTS_DIR ($AGENTFORGE_SCRIPTS_DIR) not found;" >&2
+    echo "agentforge commit-msg: skipping traceability check -- is the AgentForge plugin still installed there? Re-run the installer." >&2
+    exit 0
+fi
+
+# No --project-root override: Git always invokes a commit-msg hook with
+# the current working directory set to the top level of the working tree
+# that is actually being committed in (the worktree's own directory, not
+# the main checkout's), so the default (cwd) is already correct here --
+# including for a worktree, where $HOOK_DIR itself resolves to the
+# *shared* .git/hooks directory and must not be used to derive the
+# project root.
+exec python3 "$AGENTFORGE_SCRIPTS_DIR/git_policy.py" check-message-file "$1"
