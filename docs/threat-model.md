@@ -404,6 +404,8 @@ here rather than silently dropped:
   touch). Recorded as a cross-story gap for whichever later story extends
   that schema, per the "Exemptions" section above.
 
+## Never re-executes the command under test
+
 Every classification in this module is pure Python string/token analysis
 (`shlex.split` plus regex) over the command text. It never builds a
 second shell command containing the text being classified and never
