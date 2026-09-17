@@ -107,15 +107,16 @@ automatically — via the `Agent` tool, e.g.
   that transaction.
 - Using either bundled agent requires an explicit `Agent(...)` invocation
   naming it. Optionally registering its identity under `scope.agents.<name>`
-  in `.agentforge/config.json` (for a future graded scope-policy engine,
+  in `.agentforge/config.json` (for the graded scope-policy engine,
   STORY-013/014) is a separate, explicit, hand-made edit to an
   already-committed file — never something setup writes automatically.
 
 ## Identity used by scope hooks (STORY-014)
 
 Each bundled agent's frontmatter `name:` field (`independent-reviewer`,
-`verifier`) is its `agent_type` identity — the same string a future graded
-scope hook matches against `scope.agents.<name>` in `.agentforge/config.json`
+`verifier`) is its `agent_type` identity — the same string the graded
+scope hook (`scripts/scope_policy.py`/`scripts/path_policy.py`) matches
+against `scope.agents.<name>` in `.agentforge/config.json`
 (see `docs/agentforge-config.md`). `tests/test_agents.py` asserts this
 identity matches the filename and validates end-to-end through
 `scripts/config.py`.

@@ -40,29 +40,56 @@ useful second layer, not the boundary.
 ### Structured tools (`Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `apply_patch`)
 
 These are classified **exactly**, by tool name, because Claude/Codex
-report them precisely — there is no shell text to parse. This module only
-answers "is this a write, and is it attributable to a configured agent?"
-It does **not** perform canonical path/allow-list enforcement (resolving
-`..`, symlinks, or dotfile-vs-stripped-dotfile ambiguity against
-`scope.agents.<name>.allow`) — that is STORY-014's explicit scope
-("Canonicalize paths and expose honest scope modes"). Concretely, as of
-STORY-013:
+report them precisely — there is no shell text to parse. As of STORY-014,
+`deny-structured` and `strict-agent` also perform **real canonical path
+enforcement** against `scope.agents.<name>.allow`
+(`scripts/path_policy.py`): the project root, the target path, and every
+allowed root are resolved through symlinks and `..` normalization before
+any ancestry comparison, a leading dot component (`.env`) is preserved
+exactly (never `str.lstrip("./")`), and an exact-file allow entry
+(`".env"`) is matched by equality while a directory-root entry
+(`"allowed/"`) is matched by segment-aware ancestry — never a string
+`startswith()` comparison, which would wrongly treat `"allowedx/"` as
+inside `"allowed/"`. Concretely, as of STORY-014:
 
-- `deny-structured` mode does **not yet deny any structured write**. It
-  classifies for visibility only. Do not configure `deny-structured` and
-  assume out-of-scope writes are blocked until STORY-014 ships.
-- `strict-agent` mode denies **every** structured tool call (reads
+- `deny-structured` mode **now actually denies** a structured write whose
+  canonicalized target does not resolve under one of its agent's allowed
+  roots. Coverage is still scoped by `scope.agents`, the only allow-list
+  this config section has: a call with no `agent_type` at all (the
+  ordinary primary-session case — `agent_type` is documented as optional
+  outside subagent calls), or an `agent_type` not present in
+  `scope.agents`, has no configured scope to check against and is **not
+  restricted** by `deny-structured`. Configuring `deny-structured` does
+  not lock down the primary session; it constrains only the agent names
+  you list under `scope.agents`.
+- `strict-agent` mode still denies **every** structured tool call (reads
   included, not just writes) when it has no `agent_type`, or an
   `agent_type` not present in `scope.agents` — attribution is checked
-  first, before category, so a missing or not-yet-recognized tool name
-  can never quietly skip the check by defaulting to a read-shaped
-  category. A configured agent's writes are then allowed regardless of
-  *which* path they target — pending STORY-014's canonical path check.
-- Bash-driven file writes (`echo x > file`, `sed -i`, `cp`, ...) are
-  **never** covered by structured-tool policy at all, by construction —
-  see the Bash section below. A `deny-structured`/`strict-agent`
-  deployment that only reasons about `Write`/`Edit` calls has a
-  Bash-shaped hole regardless of STORY-014.
+  first, before category. A configured agent's write is then checked
+  against its `allow` list with the same canonical path logic as
+  `deny-structured`; an agent configured with an empty `allow: []` list
+  has declared no writable paths and is denied every write, which is
+  what makes `strict-agent` "require a custom agent definition with
+  restricted Bash/tool declarations to be meaningful" — an agent with no
+  declared restrictions gets no free rein.
+- Neither mode's structured-write path enforcement is defeated by a
+  Windows-style target or allow entry (`C:\Users\...`, `\\server\share`):
+  `path_policy.py` rejects any backslash-containing or drive-letter path
+  outright as an unsupported shape rather than silently mismatching or
+  accepting it. This project only understands POSIX-style project-relative
+  paths.
+- Bash-driven file writes (`echo x > file`, `sed -i`, `cp`, ...) remain
+  **completely outside `deny-structured`'s and `strict-agent`'s path
+  coverage**, by construction — see the Bash section below.
+  `classify_bash_command()`'s heuristic categories are a separate,
+  inherently best-effort concern (STORY-013); STORY-014's canonical path
+  enforcement applies only to the exact, name-based structured tools
+  listed above. A `deny-structured`/`strict-agent` deployment that only
+  reasons about `Write`/`Edit`/`MultiEdit`/`NotebookEdit` calls has a
+  Bash-shaped hole that no amount of path canonicalization closes — an
+  agent can always write outside its lane via `Bash` unless Bash itself is
+  separately restricted (native tool permissions/allowlists, not this
+  hook).
 
 ### Bash commands
 

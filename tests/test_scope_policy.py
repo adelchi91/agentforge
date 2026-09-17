@@ -18,7 +18,9 @@ docs/plans/agentforge-v2-user-stories.md's STORY-013:
 
 from __future__ import annotations
 
+import re
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -26,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts import path_policy  # noqa: E402
 from scripts import scope_policy  # noqa: E402
 
 
@@ -486,26 +489,479 @@ class CommandPolicyTests(unittest.TestCase):
         self.assertEqual(decision.permission, scope_policy.DENY)
 
     def test_strict_agent_allows_write_for_configured_agent(self) -> None:
-        # STORY-014 owns canonical path enforcement; STORY-013 only checks
-        # agent attribution.
+        # STORY-014: canonical path enforcement is now real. "src/main.py"
+        # resolves under the agent's allowed "src/" root, so this still
+        # allows -- but now because the path check passed, not merely
+        # because path enforcement was unimplemented. Uses an isolated
+        # tempdir project_root (rather than the default cwd) so the
+        # result does not depend on whatever happens to exist under the
+        # real working directory.
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = scope_policy.evaluate(
+                "Write",
+                {"file_path": "src/main.py"},
+                "dev",
+                "strict-agent",
+                {"dev": {"allow": ["src/"]}},
+                project_root=Path(tmp),
+            )
+        self.assertEqual(decision.permission, scope_policy.ALLOW)
+
+    def test_strict_agent_denies_write_outside_allowed_root_for_configured_agent(self) -> None:
+        # STORY-014 behavior change from STORY-013: a configured agent's
+        # write is no longer unconditionally allowed once it is a
+        # known-write category -- it must also resolve under one of the
+        # agent's allowed roots.
         decision = scope_policy.evaluate(
             "Write",
-            {"file_path": "src/main.py"},
+            {"file_path": "outside/evil.py"},
             "dev",
             "strict-agent",
             {"dev": {"allow": ["src/"]}},
         )
+        self.assertEqual(decision.permission, scope_policy.DENY)
+
+    def test_deny_structured_denies_configured_agent_write_outside_allowed_root(self) -> None:
+        # STORY-014 replaces STORY-013's placeholder
+        # ("does_not_deny_writes_yet"): deny-structured now performs real
+        # canonical path enforcement for a configured agent.
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "outside/evil.py"},
+            "dev",
+            "deny-structured",
+            {"dev": {"allow": ["allowed/"]}},
+        )
+        self.assertEqual(decision.permission, scope_policy.DENY)
+
+    def test_deny_structured_allows_configured_agent_write_inside_allowed_root(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "allowed/ok.py"},
+            "dev",
+            "deny-structured",
+            {"dev": {"allow": ["allowed/"]}},
+        )
         self.assertEqual(decision.permission, scope_policy.ALLOW)
 
-    def test_deny_structured_does_not_deny_writes_yet(self) -> None:
-        # Documents the STORY-013/STORY-014 boundary explicitly: this
-        # story lays the foundation only. A future STORY-014 change to
-        # this behavior is expected and should update this test.
+    def test_deny_structured_does_not_restrict_calls_with_no_configured_agent(self) -> None:
+        # Explicit, tested behavior for a missing/unknown agent_type under
+        # deny-structured (STORY-014 requirement): the mode's allow-lists
+        # are keyed by agent name (scope.agents), so a call with no
+        # agent_type at all -- the ordinary primary-session case, since
+        # agent_type is documented as optional outside subagent calls --
+        # has no configured scope to enforce and is allowed. This is
+        # different from strict-agent, which denies exactly this case.
         decision = scope_policy.evaluate(
             "Write", {"file_path": "outside/evil.py"}, None, "deny-structured", {}
         )
         self.assertEqual(decision.permission, scope_policy.ALLOW)
 
+    def test_deny_structured_does_not_restrict_calls_for_unknown_agent(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "outside/evil.py"},
+            "unknown-agent",
+            "deny-structured",
+            {"dev": {"allow": ["allowed/"]}},
+        )
+        self.assertEqual(decision.permission, scope_policy.ALLOW)
+
+    def test_deny_structured_mode_does_not_gate_reads(self) -> None:
+        decision = scope_policy.evaluate(
+            "Read",
+            {"file_path": "outside/whatever.py"},
+            "dev",
+            "deny-structured",
+            {"dev": {"allow": ["allowed/"]}},
+        )
+        self.assertEqual(decision.permission, scope_policy.ALLOW)
+
+    def test_deny_structured_denies_write_with_no_recognizable_target_path(self) -> None:
+        # A configured agent's write call whose tool_input carries none of
+        # the known path keys must fail closed, not be silently allowed
+        # for lack of something to check.
+        decision = scope_policy.evaluate(
+            "Write", {}, "dev", "deny-structured", {"dev": {"allow": ["allowed/"]}}
+        )
+        self.assertEqual(decision.permission, scope_policy.DENY)
+
+
+class PathPolicyTests(unittest.TestCase):
+    """Tests for scripts/path_policy.py's canonical path utilities
+    (STORY-014). Uses a real temporary directory tree (with a real
+    symlink) so ancestry/escape checks run against actual resolve()
+    behavior, not a mocked filesystem."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.project_root = Path(self._tmp.name) / "project"
+        (self.project_root / "allowed").mkdir(parents=True)
+        (self.project_root / ".github" / "workflows").mkdir(parents=True)
+        # A sibling directory *outside* the project root, and one whose
+        # name merely shares a string prefix with an allowed root -- both
+        # must be distinguished from real ancestry by segment-aware
+        # comparison, never by string startswith().
+        self.outside_root = Path(self._tmp.name) / "outside"
+        self.outside_root.mkdir()
+        (Path(self._tmp.name) / "project-evil").mkdir()
+        (self.project_root / "allowedx").mkdir()
+
+    # --- dotfile preservation (never lstrip("./")) ---
+
+    def test_exact_dotfile_allowance_matches_itself(self) -> None:
+        result = path_policy.check_path(self.project_root, ".env", [".env"])
+        self.assertTrue(result.allowed, result.reason)
+
+    def test_exact_dotfile_allowance_does_not_match_stripped_name(self) -> None:
+        # The v1 bug this guards against: lstrip("./") would have turned
+        # ".env" into "env". A target literally named "env" (no dot) must
+        # not match an allow-list entry of ".env".
+        result = path_policy.check_path(self.project_root, "env", [".env"])
+        self.assertFalse(result.allowed)
+
+    def test_exact_dotfile_allowance_does_not_match_sibling_dotfile(self) -> None:
+        # Exact-file allowance is equality, not a prefix match.
+        result = path_policy.check_path(self.project_root, ".env.local", [".env"])
+        self.assertFalse(result.allowed)
+
+    def test_dotfile_directory_root_with_nested_file_is_allowed(self) -> None:
+        # Acceptance criterion: ".github/workflows/ci.yml" matches an
+        # allowed ".github/workflows/" root -- exercises the dotfile
+        # *directory* case together with a nested file under it.
+        result = path_policy.check_path(
+            self.project_root, ".github/workflows/ci.yml", [".github/workflows/"]
+        )
+        self.assertTrue(result.allowed, result.reason)
+
+    # --- exact-file vs. directory-root distinction ---
+
+    def test_directory_root_allows_any_file_under_it(self) -> None:
+        result = path_policy.check_path(self.project_root, "allowed/deep/nested/file.py", ["allowed/"])
+        self.assertTrue(result.allowed, result.reason)
+
+    def test_exact_file_entry_does_not_allow_other_files(self) -> None:
+        result = path_policy.check_path(self.project_root, "allowed/other.py", ["allowed/ok.py"])
+        self.assertFalse(result.allowed)
+
+    def test_exact_file_entry_allows_only_that_file(self) -> None:
+        result = path_policy.check_path(self.project_root, "allowed/ok.py", ["allowed/ok.py"])
+        self.assertTrue(result.allowed, result.reason)
+
+    def test_directory_root_does_not_match_string_prefix_sibling(self) -> None:
+        # "allowedx" shares a string prefix with "allowed" but is a
+        # different directory. A startswith()-based check would wrongly
+        # match; a segment-aware check (Path.relative_to) must not.
+        result = path_policy.check_path(self.project_root, "allowedx/evil.py", ["allowed/"])
+        self.assertFalse(result.allowed)
+
+    # --- traversal escape ---
+
+    def test_relative_dotdot_traversal_escape_is_rejected(self) -> None:
+        # The exact v1 bug in DotDotScopeEscapeTests, now fixed: v1 let
+        # "allowed/../../outside/evil.py" through because it never
+        # resolved a relative path before the prefix check.
+        result = path_policy.check_path(
+            self.project_root, "allowed/../../outside/evil.py", ["allowed/"]
+        )
+        self.assertFalse(result.allowed)
+
+    def test_absolute_path_outside_project_is_rejected(self) -> None:
+        result = path_policy.check_path(
+            self.project_root, str(self.outside_root / "evil.py"), ["allowed/"]
+        )
+        self.assertFalse(result.allowed)
+
+    def test_absolute_path_inside_project_matching_allow_is_accepted(self) -> None:
+        target = str(self.project_root / "allowed" / "file.py")
+        result = path_policy.check_path(self.project_root, target, ["allowed/"])
+        self.assertTrue(result.allowed, result.reason)
+
+    def test_sibling_directory_sharing_string_prefix_is_not_inside_root(self) -> None:
+        # "<tmp>/project-evil" starts with the same characters as
+        # "<tmp>/project" but is not an ancestor/descendant of it. A
+        # string-prefix root check would wrongly treat it as inside the
+        # project; a segment-aware check must reject it.
+        evil_root = Path(self._tmp.name) / "project-evil"
+        result = path_policy.check_path(
+            self.project_root, str(evil_root / "evil.py"), ["allowed/"]
+        )
+        self.assertFalse(result.allowed)
+
+    # --- symlink escape ---
+
+    def test_symlink_escaping_allowed_root_is_rejected(self) -> None:
+        # A real symlink inside the allowed directory whose target is
+        # outside the project root entirely.
+        link = self.project_root / "allowed" / "escape"
+        link.symlink_to(self.outside_root, target_is_directory=True)
+        result = path_policy.check_path(
+            self.project_root, "allowed/escape/secret.txt", ["allowed/"]
+        )
+        self.assertFalse(result.allowed)
+
+    def test_symlink_escaping_project_root_via_absolute_target_is_rejected(self) -> None:
+        link = self.project_root / "link-out"
+        link.symlink_to(self.outside_root, target_is_directory=True)
+        result = path_policy.check_path(self.project_root, "link-out/secret.txt", ["allowed/"])
+        self.assertFalse(result.allowed)
+
+    # --- Windows-style fixtures (rejected even though this runs on Unix) ---
+
+    def test_windows_drive_letter_target_is_rejected(self) -> None:
+        result = path_policy.check_path(
+            self.project_root, r"C:\Users\evil\file.txt", ["allowed/"]
+        )
+        self.assertFalse(result.allowed)
+        self.assertIn("unsupported", result.reason)
+
+    def test_windows_drive_letter_forward_slash_target_is_rejected(self) -> None:
+        result = path_policy.check_path(self.project_root, "C:/Users/evil/file.txt", ["allowed/"])
+        self.assertFalse(result.allowed)
+
+    def test_windows_unc_path_target_is_rejected(self) -> None:
+        result = path_policy.check_path(
+            self.project_root, r"\\server\share\file.txt", ["allowed/"]
+        )
+        self.assertFalse(result.allowed)
+
+    def test_windows_style_allow_entry_is_ignored_not_crashing(self) -> None:
+        # Defense in depth: scripts/config.py already rejects a
+        # Windows-shaped allow entry at config-validation time (STORY-004),
+        # but path_policy must not crash or misbehave if one ever reaches
+        # it -- it is simply skipped, matching nothing.
+        result = path_policy.check_path(
+            self.project_root, "allowed/file.py", [r"C:\Users\evil", "allowed/"]
+        )
+        self.assertTrue(result.allowed, result.reason)
+
+    def test_looks_like_windows_path_helper(self) -> None:
+        self.assertTrue(path_policy.looks_like_windows_path(r"C:\Users\evil"))
+        self.assertTrue(path_policy.looks_like_windows_path("C:/Users/evil"))
+        self.assertTrue(path_policy.looks_like_windows_path(r"\\server\share"))
+        self.assertFalse(path_policy.looks_like_windows_path("src/main.py"))
+        self.assertFalse(path_policy.looks_like_windows_path(".env"))
+
+    # --- extract_target_path ---
+
+    def test_extract_target_path_prefers_file_path(self) -> None:
+        self.assertEqual(
+            path_policy.extract_target_path({"file_path": "src/main.py"}), "src/main.py"
+        )
+
+    def test_extract_target_path_falls_back_to_notebook_path(self) -> None:
+        self.assertEqual(
+            path_policy.extract_target_path({"notebook_path": "nb/analysis.ipynb"}),
+            "nb/analysis.ipynb",
+        )
+
+    def test_extract_target_path_returns_none_when_absent(self) -> None:
+        self.assertIsNone(path_policy.extract_target_path({"content": "no path field here"}))
+
+    def test_extract_target_path_returns_none_for_non_dict(self) -> None:
+        self.assertIsNone(path_policy.extract_target_path(None))
+
+
+class AgentIdentityTests(unittest.TestCase):
+    """Missing/unknown agent_type behavior for structured-write path
+    enforcement, across every scope.mode (STORY-014 requirement extending
+    STORY-013's Bash-classification agent-identity matrix), plus matching
+    against the two real shipped agent frontmatter `name` fields."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.project_root = Path(self._tmp.name)
+        (self.project_root / "allowed").mkdir()
+
+    # --- off: no evaluation happens at all, regardless of agent_type ---
+
+    def test_off_mode_performs_no_evaluation_for_any_agent_type(self) -> None:
+        import io
+        import json
+        from unittest import mock
+
+        config_dir = self.project_root / ".agentforge"
+        config_dir.mkdir()
+        cfg = dict(scope_policy.agentforge_config.DEFAULT_CONFIG)
+        cfg["scope"] = {"mode": "off", "agents": {"dev": {"allow": ["allowed/"]}}}
+        (config_dir / "config.json").write_text(json.dumps(cfg))
+
+        for agent_type in (None, "dev", "unknown-agent"):
+            payload = {
+                "tool_name": "Write",
+                "tool_input": {"file_path": "outside/evil.py"},
+                "cwd": str(self.project_root),
+            }
+            if agent_type is not None:
+                payload["agent_type"] = agent_type
+            with mock.patch("sys.stdin", io.StringIO(json.dumps(payload))):
+                with mock.patch("sys.stdout", new_callable=io.StringIO) as fake_out:
+                    exit_code = scope_policy.main()
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(fake_out.getvalue(), "", "off mode must not emit a decision at all")
+
+    # --- observe: always allows, regardless of agent_type ---
+
+    def test_observe_mode_allows_structured_write_with_no_agent_type(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write", {"file_path": "outside/evil.py"}, None, "observe", {}
+        )
+        self.assertEqual(decision.permission, scope_policy.ALLOW)
+
+    def test_observe_mode_allows_structured_write_with_unknown_agent_type(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "outside/evil.py"},
+            "unknown-agent",
+            "observe",
+            {"dev": {"allow": ["allowed/"]}},
+        )
+        self.assertEqual(decision.permission, scope_policy.ALLOW)
+
+    # --- ask: asks on a structured write regardless of agent_type ---
+
+    def test_ask_mode_asks_on_structured_write_with_no_agent_type(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write", {"file_path": "outside/evil.py"}, None, "ask", {}
+        )
+        self.assertEqual(decision.permission, scope_policy.ASK)
+
+    def test_ask_mode_asks_on_structured_write_with_unknown_agent_type(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "outside/evil.py"},
+            "unknown-agent",
+            "ask",
+            {"dev": {"allow": ["allowed/"]}},
+        )
+        self.assertEqual(decision.permission, scope_policy.ASK)
+
+    # --- deny-structured: enforcement only applies to a configured agent ---
+
+    def test_deny_structured_allows_write_with_missing_agent_type(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "outside/evil.py"},
+            None,
+            "deny-structured",
+            {"dev": {"allow": ["allowed/"]}},
+            project_root=self.project_root,
+        )
+        self.assertEqual(decision.permission, scope_policy.ALLOW)
+
+    def test_deny_structured_allows_write_with_unknown_agent_type(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "outside/evil.py"},
+            "unknown-agent",
+            "deny-structured",
+            {"dev": {"allow": ["allowed/"]}},
+            project_root=self.project_root,
+        )
+        self.assertEqual(decision.permission, scope_policy.ALLOW)
+
+    def test_deny_structured_denies_configured_agent_out_of_scope(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "outside/evil.py"},
+            "dev",
+            "deny-structured",
+            {"dev": {"allow": ["allowed/"]}},
+            project_root=self.project_root,
+        )
+        self.assertEqual(decision.permission, scope_policy.DENY)
+
+    # --- strict-agent: denies *every* structured call outside attribution ---
+
+    def test_strict_agent_denies_write_with_missing_agent_type(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "allowed/file.py"},
+            None,
+            "strict-agent",
+            {"dev": {"allow": ["allowed/"]}},
+            project_root=self.project_root,
+        )
+        self.assertEqual(decision.permission, scope_policy.DENY)
+
+    def test_strict_agent_denies_write_with_unknown_agent_type(self) -> None:
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "allowed/file.py"},
+            "unknown-agent",
+            "strict-agent",
+            {"dev": {"allow": ["allowed/"]}},
+            project_root=self.project_root,
+        )
+        self.assertEqual(decision.permission, scope_policy.DENY)
+
+    def test_strict_agent_with_no_declared_restrictions_still_denies_out_of_scope(self) -> None:
+        # "strict-agent requires a custom agent definition with restricted
+        # Bash/tool declarations to be meaningful": an agent configured
+        # with an empty allow-list has declared no writable paths at all,
+        # so it must not get free rein over the project.
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "anything.py"},
+            "dev",
+            "strict-agent",
+            {"dev": {"allow": []}},
+            project_root=self.project_root,
+        )
+        self.assertEqual(decision.permission, scope_policy.DENY)
+
+    # --- real shipped agent identities (agents/verifier.md,
+    # agents/independent-reviewer.md) ---
+
+    @staticmethod
+    def _frontmatter_name(md_path: Path) -> str:
+        text = md_path.read_text(encoding="utf-8")
+        match = re.search(r"^name:\s*(\S+)\s*$", text, re.MULTILINE)
+        assert match is not None, f"no 'name:' frontmatter field found in {md_path}"
+        return match.group(1)
+
+    def test_verifier_frontmatter_name_matches_its_own_scope_agents_key(self) -> None:
+        name = self._frontmatter_name(REPO_ROOT / "agents" / "verifier.md")
+        self.assertEqual(name, "verifier")
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "allowed/report.md"},
+            name,
+            "strict-agent",
+            {name: {"allow": ["allowed/"]}},
+            project_root=self.project_root,
+        )
+        self.assertEqual(decision.permission, scope_policy.ALLOW)
+
+    def test_independent_reviewer_frontmatter_name_matches_its_own_scope_agents_key(self) -> None:
+        name = self._frontmatter_name(REPO_ROOT / "agents" / "independent-reviewer.md")
+        self.assertEqual(name, "independent-reviewer")
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "outside/evil.py"},
+            name,
+            "strict-agent",
+            {name: {"allow": ["allowed/"]}},
+            project_root=self.project_root,
+        )
+        self.assertEqual(decision.permission, scope_policy.DENY)
+
+    def test_agent_name_is_matched_exactly_not_by_substring(self) -> None:
+        # "verifier" must not match a configured "verifier-extended" (or
+        # vice versa) -- scope.agents lookup is exact-key membership
+        # (`agent_type not in scope_agents`), never a prefix/substring
+        # match.
+        decision = scope_policy.evaluate(
+            "Write",
+            {"file_path": "allowed/file.py"},
+            "verifier",
+            "strict-agent",
+            {"verifier-extended": {"allow": ["allowed/"]}},
+            project_root=self.project_root,
+        )
+        self.assertEqual(decision.permission, scope_policy.DENY)
 
 
 if __name__ == "__main__":
