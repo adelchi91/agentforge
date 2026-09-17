@@ -130,7 +130,7 @@ The 6-step flow:
 ├── skills/                    ← knowledge chunks per domain (<domain>/SKILL.md)
 ├── hooks/
 │   ├── pre_tool_use.py        ← blocks destructive commands + enforces agent scopes
-│   ├── post_tool_use.py       ← auto-lint on Write/Edit (ruff, eslint)
+│   ├── post_tool_use.py       ← off by default; reports (never mutates) ruff/eslint findings on Write/Edit/MultiEdit only when `.agentforge/config.json`'s `quality.post_edit` is `"report"`
 │   ├── session_start.py       ← injects golden rule + active story
 │   ├── user_prompt_submit.py  ← injects story scope when STORY-XXX is mentioned
 │   ├── subagent_stop.py       ← handoff-chain audit log
@@ -153,7 +153,7 @@ AGENTS.md                      ← project constitution
 ├── agents/                     ← one .toml custom agent per persona
 └── hooks/                      ← same shared Python hook suite as the Claude target
     ├── pre_tool_use.py         ← safety guardrails + agent scope enforcement
-    ├── post_tool_use.py        ← targeted auto-lint
+    ├── post_tool_use.py        ← off by default; reports (never mutates) ruff/eslint findings when opted in
     ├── session_start.py / user_prompt_submit.py / subagent_stop.py / pre_compact.py
     ├── session_end.py          ← session record (registered on Stop)
     └── scopes.json             ← agent → allowed-folders map

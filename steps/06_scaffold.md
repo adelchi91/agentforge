@@ -19,7 +19,7 @@ If target platform is `CLAUDE`, display the complete file tree of what will be c
   │   └── [one folder per domain]/SKILL.md
   ├── hooks/
   │   ├── pre_tool_use.py        ← safety + per-agent scope enforcement
-  │   ├── post_tool_use.py       ← auto-lint on Write/Edit
+  │   ├── post_tool_use.py       ← off by default; reports (never mutates) lint findings on Write/Edit when opted in
   │   ├── session_start.py       ← inject golden rule + active story
   │   ├── user_prompt_submit.py  ← inject story scope when STORY-XXX mentioned
   │   ├── subagent_stop.py       ← handoff-chain audit log
