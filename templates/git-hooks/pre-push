@@ -1,0 +1,63 @@
+#!/bin/sh
+# Managed by AgentForge (STORY-012) -- do not hand-edit; re-run the installer to update.
+#
+# Real Git pre-push hook: validates every commit this push would introduce
+# to the remote (not just HEAD), using scripts/git_policy.py's identifier
+# check against the project's .agentforge/config.json. This is the
+# pushed-commit analog of templates/git-hooks/commit-msg (STORY-011): that
+# hook only ever sees one commit at a time as it is created, so a commit
+# made with --no-verify, amended, rebased, or cherry-picked in from
+# elsewhere would never be re-checked before it reaches a shared remote.
+# This hook closes that gap by validating the full outgoing commit range
+# for every ref being pushed, so a compliant HEAD can never mask an older
+# noncompliant commit hiding earlier in the same push
+# (docs/threat-model.md's STORY-012 section has the full design and its
+# documented limitations).
+#
+# Git invokes this hook as: pre-push <remote-name> <remote-url>, with one
+# "<local-ref> <local-sha> <remote-ref> <remote-sha>" line per updated ref
+# on stdin. AGENTFORGE_SCRIPTS_DIR is baked in by the installer at install
+# time (scripts/git_policy.py's `render_pre_push_hook_script`), exactly
+# like the commit-msg hook, for the same reason: ${CLAUDE_PLUGIN_ROOT}
+# only exists inside a live Claude Code session, but this hook must also
+# work for `git push` run from a bare terminal or a GUI client with no
+# AgentForge session active at all.
+AGENTFORGE_SCRIPTS_DIR="__AGENTFORGE_SCRIPTS_DIR__"
+
+HOOK_DIR=$(dirname "$0")
+remote_name="$1"
+remote_url="$2"
+
+# Pre-push stdin is a pipe and can only be read once. Buffer it to a temp
+# file first so the exact same ref-update lines can be replayed to both a
+# pre-existing chained hook (if any) and this hook's own check, in that
+# order, without either consumer starving the other of input.
+stdin_buffer=$(mktemp "${TMPDIR:-/tmp}/agentforge-pre-push.XXXXXX") || exit 1
+trap 'rm -f "$stdin_buffer"' EXIT
+cat > "$stdin_buffer"
+
+# Chain to a hook that was already installed here before AgentForge's
+# installer ran (renamed to pre-push.pre-agentforge at install time).
+# Never silently replace another tool's hook: if it fails, this push is
+# rejected exactly as it would have been without AgentForge involved.
+if [ -x "$HOOK_DIR/pre-push.pre-agentforge" ]; then
+    "$HOOK_DIR/pre-push.pre-agentforge" "$remote_name" "$remote_url" < "$stdin_buffer"
+    status=$?
+    if [ "$status" -ne 0 ]; then
+        exit "$status"
+    fi
+fi
+
+if [ ! -f "$AGENTFORGE_SCRIPTS_DIR/git_policy.py" ]; then
+    echo "agentforge pre-push: AGENTFORGE_SCRIPTS_DIR ($AGENTFORGE_SCRIPTS_DIR) not found;" >&2
+    echo "agentforge pre-push: skipping traceability check -- is the AgentForge plugin still installed there? Re-run the installer." >&2
+    exit 0
+fi
+
+# No --project-root override: Git always invokes a pre-push hook with the
+# current working directory set to the top level of the working tree that
+# is actually pushing (the worktree's own directory, not the main
+# checkout's), so the default (cwd) is already correct here -- matching
+# templates/git-hooks/commit-msg's own reasoning.
+python3 "$AGENTFORGE_SCRIPTS_DIR/git_policy.py" check-pre-push "$remote_name" "$remote_url" < "$stdin_buffer"
+exit $?
