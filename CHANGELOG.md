@@ -183,3 +183,30 @@ removed until a later story retires it (see
     `UserPromptSubmit` handler lands in; this story only implements
     `handle_session_start` and leaves that dispatch as an explicit
     extension point.
+
+### Added (STORY-009, STORY-010)
+
+- STORY-010's `UserPromptSubmit` handler is now integrated alongside
+  STORY-009's `SessionStart` handler in the same `scripts/context.py` and
+  the same `hooks/hooks.json`. Both hooks were built independently in
+  parallel worktrees and reconciled during integration: dispatch between
+  them is now purely by the `hook_event_name` field every hook payload
+  carries (no CLI subcommand), and the runtime-snapshot reader they share
+  was unified onto `scripts/active_state.py`'s symlink-safe path
+  resolution, closing a gap where STORY-009's original standalone reader
+  joined `.agentforge/active-work.json` without going through that
+  safety check.
+- `UserPromptSubmit` detects the project's configured canonical
+  work-item identifier in the submitted prompt (gated by STORY-006's
+  identifier-shape classification, so a repository, path, or
+  wrong-tracker-shaped token never matches) and injects: the bounded
+  active work contract when it matches the current active-work snapshot;
+  only the detected id, the current active id (or "none"), and a
+  `/agentforge:prepare-work <id>` instruction when it does not; or an
+  explicit ambiguity report when more than one distinct identifier is
+  detected in one prompt. Version strings, dates, and line-number
+  references are never false positives. Never fetches remote content or
+  shells out, even under a github/gitlab tracker. Turn-level
+  de-duplication is documented as a known, accepted limitation — the
+  hook payload carries no stable per-turn key, only a session-wide one
+  that would suppress re-injection for too long.
