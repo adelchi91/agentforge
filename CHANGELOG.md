@@ -159,3 +159,27 @@ removed until a later story retires it (see
   outside of a real push. `--no-verify`, a missing local installation, and
   server-side CI/branch protection remain out of this hook's reach and are
   documented as limitations (STORY-012).
+
+### Added (STORY-009)
+
+- `scripts/context.py` and a `SessionStart` entry in `hooks/hooks.json`:
+  active work restored on every lifecycle boundary — `startup`, `resume`,
+  `clear`, and `compact` all read the same `.agentforge/active-work.json`
+  snapshot STORY-008 writes and produce equivalent `additionalContext`
+  (identity, source pointer, allowed/forbidden paths, verification
+  commands), with no branching on which source triggered the call.
+  - Reads only the committed config and the gitignored runtime snapshot —
+    no subprocess, no network call (ADR-0005).
+  - A missing snapshot is a silent no-op; a malformed one (bad JSON/
+    encoding, wrong shape, or a missing identity field) is a visible
+    stderr warning, never an uncaught exception, and never written to
+    stdout. A "stale" (old `prepared_at`) snapshot is rendered exactly
+    like any other valid one — there is no expiry/staleness policy.
+  - The emitted context is bounded to the project's configured
+    `context.max_bytes`, dropping the out-of-scope summary first, then
+    verification commands, then forbidden paths, then allowed paths, in
+    that order, before ever touching identity or the source pointer.
+  - `scripts/context.py` is also the shared module STORY-010's
+    `UserPromptSubmit` handler lands in; this story only implements
+    `handle_session_start` and leaves that dispatch as an explicit
+    extension point.
