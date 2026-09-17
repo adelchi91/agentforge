@@ -580,6 +580,42 @@ def _git_effective_hooks_path(project_root: Path) -> tuple:
     return value, (origin or "git")
 
 
+def detect_hook_managers(project_root: Path) -> dict:
+    """Read-only detection of what (if anything) already manages Git hooks
+    for `project_root`: the effective `core.hooksPath`, whether a
+    `commit-msg`/`pre-push` hook file already exists at the conventional
+    `.git/hooks/` location, and whether Husky or the `pre-commit` framework
+    appear to own hooks here. Every field comes from a read-only Git call
+    (`_git_effective_hooks_path`) or a plain filesystem check — nothing
+    here mutates anything.
+
+    This is the single detection surface `_inspect_report` (STORY-005,
+    informational notes only) and `scripts/git_policy.py`'s installer
+    (STORY-011, which must never silently overwrite another hook manager)
+    both read, so the two stories can never disagree about what was found.
+    Note that `commit_msg_hook_path`/`pre_push_hook_path` below are the
+    conventional non-worktree `.git/hooks/` location used for this
+    informational check; `scripts/git_policy.py` additionally resolves the
+    actual effective hooks directory via `git rev-parse --git-path hooks`
+    for worktree/custom-`hooksPath` correctness when it decides where to
+    install.
+    """
+    hooks_path, hooks_path_origin = _git_effective_hooks_path(project_root)
+    commit_msg_hook_path = project_root / ".git" / "hooks" / "commit-msg"
+    pre_push_hook_path = project_root / ".git" / "hooks" / "pre-push"
+    husky_dir = project_root / ".husky"
+    pre_commit_config = project_root / ".pre-commit-config.yaml"
+
+    return {
+        "hooks_path": hooks_path,
+        "hooks_path_origin": hooks_path_origin,
+        "commit_msg_hook_exists": commit_msg_hook_path.exists(),
+        "pre_push_hook_exists": pre_push_hook_path.exists(),
+        "husky_present": husky_dir.is_dir(),
+        "pre_commit_config_present": pre_commit_config.exists(),
+    }
+
+
 def _inspect_report(project_root: Path) -> list:
     """Requirement 1/11: inspect (never mutate) docs/agents/, Claude
     settings, and Git-hook management, and surface what was found as
@@ -599,32 +635,29 @@ def _inspect_report(project_root: Path) -> list:
         if settings_path.exists():
             notes.append(f".claude/{name} exists; left unchanged (no settings changes in STORY-005).")
 
-    hooks_path, hooks_path_origin = _git_effective_hooks_path(project_root)
-    if hooks_path is not None:
+    hooks = detect_hook_managers(project_root)
+
+    if hooks["hooks_path"] is not None:
         notes.append(
-            f"effective git core.hooksPath is {hooks_path!r} (origin: "
-            f"{hooks_path_origin}); no Git-hook changes proposed."
+            f"effective git core.hooksPath is {hooks['hooks_path']!r} (origin: "
+            f"{hooks['hooks_path_origin']}); no Git-hook changes proposed."
         )
 
-    commit_msg_hook = project_root / ".git" / "hooks" / "commit-msg"
-    if commit_msg_hook.exists():
+    if hooks["commit_msg_hook_exists"]:
         notes.append(".git/hooks/commit-msg already exists; left unchanged.")
 
-    pre_push_hook = project_root / ".git" / "hooks" / "pre-push"
-    if pre_push_hook.exists():
+    if hooks["pre_push_hook_exists"]:
         notes.append(".git/hooks/pre-push already exists; left unchanged.")
 
-    husky_dir = project_root / ".husky"
-    if husky_dir.is_dir():
+    if hooks["husky_present"]:
         notes.append(".husky/ present; another Git-hook manager appears to own hooks here.")
 
-    pre_commit_config = project_root / ".pre-commit-config.yaml"
-    if pre_commit_config.exists():
+    if hooks["pre_commit_config_present"]:
         notes.append(".pre-commit-config.yaml present; the pre-commit framework appears to own hooks here.")
 
     any_hook_manager = bool(
-        hooks_path or commit_msg_hook.exists() or pre_push_hook.exists()
-        or husky_dir.is_dir() or pre_commit_config.exists()
+        hooks["hooks_path"] or hooks["commit_msg_hook_exists"] or hooks["pre_push_hook_exists"]
+        or hooks["husky_present"] or hooks["pre_commit_config_present"]
     )
     notes.append(
         "Git-hook commit/push traceability enforcement is not installed by this "
