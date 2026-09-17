@@ -141,3 +141,21 @@ removed until a later story retires it (see
   - The runtime-state destination is resolved through symlinks
     (`scripts/path_policy.py`, STORY-014) and refuses to write or delete
     outside the project root.
+
+### Added (STORY-008, STORY-012)
+
+- `/agentforge:prepare-work` (above) and pre-push commit validation are now
+  both integrated into `agentforge-v2`.
+- `scripts/git_policy.py` and `templates/git-hooks/pre-push`: real pre-push
+  validation of every unique outgoing commit across all pushed refs, not
+  just HEAD, against the same tracker-identifier policy STORY-011 enforces
+  at commit time. Correctly handles new branches, deleted refs, force
+  pushes, multiple refs, and commits duplicated across ranges; a compliant
+  HEAD never masks an older noncompliant commit, and deletions are always
+  allowed. Installation extends STORY-011's hook-manager detection to
+  `pre-push` without overwriting an existing hook (Husky, `pre-commit`,
+  `core.hooksPath`, or a custom `pre-push`), chaining to it when one
+  exists; a `check-range` CI command validates a supplied base/head range
+  outside of a real push. `--no-verify`, a missing local installation, and
+  server-side CI/branch protection remain out of this hook's reach and are
+  documented as limitations (STORY-012).
