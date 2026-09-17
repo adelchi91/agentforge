@@ -99,3 +99,45 @@ removed until a later story retires it (see
   under test` section header during the STORY-011 merge, orphaning that
   section's body text at the end of the file with no heading. Restored;
   no policy semantics changed.
+
+### Added (STORY-008)
+
+- `scripts/active_state.py`: `/agentforge:prepare-work <id>` implemented
+  end to end — resolves the configured work item (STORY-006), checks
+  every blocker is closed (or is explicitly, visibly overridden by the
+  user), checks the eight-section work contract is structurally complete
+  (STORY-007), and writes the bounded, gitignored runtime snapshot
+  `.agentforge/active-work.json` (schema version, canonical id, title,
+  source pointer, content digest, prepared-at timestamp, allowed/
+  forbidden paths, verification commands, out-of-scope summary, and
+  blocker-override evidence when applicable). Every step is a plan/apply
+  pair using the same approval-binding, stale-plan-safe shape
+  `scripts/setup.py` already established (STORY-005): nothing is written
+  until an explicit `--approved-plan-id` matches a freshly recomputed
+  plan.
+  - A missing contract section can be filled and, for the `local`
+    tracker only, written back to the ticket file after an explicit diff
+    approval (`contract-plan`/`contract-apply`); GitHub/GitLab items get
+    a proposed diff but no automatic remote write — STORY-006 implemented
+    fetch-only adapters, so a remote contract update is always the user's
+    own action via the tracker's own edit command.
+  - The snapshot is bounded by `context.max_bytes`: an oversized snapshot
+    is shrunk by truncating only `title`/`out_of_scope_summary` (identity,
+    source, scope, and verification commands are never touched), and is
+    rejected outright — never truncated into invalid JSON — if shrinking
+    those two fields still does not fit.
+  - Re-preparing an unchanged item is a true no-op (content-digest
+    equality is checked before ever touching the file); a fetch,
+    contract, oversized, or write failure always leaves whatever valid
+    snapshot already existed on disk untouched, and a malformed previous
+    snapshot never blocks a subsequent successful prepare.
+  - `.gitignore` gains exactly one surgical entry,
+    `.agentforge/active-work.json`, preserving every other line, comment,
+    newline style, and final-newline state; `.agentforge/config.json` is
+    never added to it.
+  - `--clear` requires explicit confirmation, deletes only
+    `.agentforge/active-work.json`, never touches a tracker item, and is
+    idempotent when no snapshot exists.
+  - The runtime-state destination is resolved through symlinks
+    (`scripts/path_policy.py`, STORY-014) and refuses to write or delete
+    outside the project root.
