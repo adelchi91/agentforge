@@ -1,5 +1,5 @@
 {
-  "description": "AgentForge lifecycle hooks. PreToolUse wires the STORY-013 graded command-policy engine (scripts/scope_policy.py); SessionStart (STORY-009) and UserPromptSubmit (STORY-010) entries are added later. Scripts are always invoked via ${CLAUDE_PLUGIN_ROOT}/scripts/.",
+  "description": "AgentForge lifecycle hooks. PreToolUse wires the STORY-013 graded command-policy engine (scripts/scope_policy.py); UserPromptSubmit wires the STORY-010 named-work-context injector (scripts/context.py); SessionStart (STORY-009) is added later. Scripts are always invoked via ${CLAUDE_PLUGIN_ROOT}/scripts/.",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,6 +8,16 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/scope_policy.py\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/context.py\" user-prompt-submit"
           }
         ]
       }
