@@ -64,3 +64,38 @@ removed until a later story retires it (see
   `project-bootstrap@agentforge` to `agentforge@agentforge` automatically.
   README and `docs/compatibility.md` document the exact, tested manual
   migration order (uninstall old → update marketplace → install new).
+
+### Added (STORY-007, STORY-011, STORY-014)
+
+- `skills/work-contract/SKILL.md`: the reusable work-contract discipline —
+  `What to build`, `Blocked by`, `Acceptance criteria`, `May touch`/
+  `Must not touch`, `Verification commands`, `Out of scope`, and
+  `Completion evidence`. Rejects vague or invented verification commands
+  and preserves the canonical identity and blocking edges Matt's
+  `to-tickets` workflow already assigned, rather than reinventing them
+  (STORY-007). `templates/local-work-item.md` is the matching local-tracker
+  template, and `evals/work-contract/` covers feature, bug,
+  documentation-only, migration, and external-manual-step work.
+- `scripts/git_policy.py` and `templates/git-hooks/commit-msg`: a real Git
+  `commit-msg` hook that validates the actual commit message file Git
+  hands it — never shell-command text — against the project's configured
+  tracker identifier pattern (GitHub, GitLab, or local). Installation
+  detects and never overwrites an existing hook manager (Husky,
+  `pre-commit`, a custom `core.hooksPath`, or an existing `commit-msg`),
+  chaining to it when safe, and falls back to documented manual
+  integration or a CI-only `check-commit` command otherwise (STORY-011).
+- `scripts/path_policy.py`: canonical path/allow-list utilities that
+  resolve the project root, target paths, and every allowed root through
+  symlink and `..` normalization before any ancestry comparison, and
+  distinguish an exact-file allowance from a directory-root allowance.
+  Wired into `scripts/scope_policy.py` so `deny-structured` mode now
+  actually denies an out-of-scope structured write instead of only
+  classifying it, and dotfiles like `.env` are preserved exactly rather
+  than string-stripped (STORY-014).
+
+### Fixed
+
+- `docs/threat-model.md` had lost the `## Never re-executes the command
+  under test` section header during the STORY-011 merge, orphaning that
+  section's body text at the end of the file with no heading. Restored;
+  no policy semantics changed.
