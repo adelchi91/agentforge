@@ -80,6 +80,21 @@ def _commit(root: Path, message: str, *, allow_empty: bool = True) -> subprocess
     )
 
 
+def _commit_sha(root: Path, message: str) -> str:
+    """Like `_commit`, but for STORY-012's pre-push tests, which need the
+    resulting commit's SHA (to build pre-push stdin lines) rather than the
+    raw `CompletedProcess` -- and always succeeds unconditionally (no
+    commit-msg hook is installed in any of those tests, only pre-push), so
+    asserting on the result here would be redundant."""
+    result = subprocess.run(
+        ["git", "-C", str(root), "commit", "-q", "--allow-empty", "-m", message],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return _git(root, "rev-parse", "HEAD").stdout.strip()
+
+
 @unittest.skipUnless(_GIT_AVAILABLE, "git executable not available")
 class ChainedInstallTests(unittest.TestCase):
     def test_plan_reports_chained_with_no_existing_hook(self) -> None:
@@ -549,6 +564,304 @@ class CliSubprocessTests(unittest.TestCase):
                 capture_output=True, text=True,
             )
             self.assertEqual(manual.returncode, 2)
+
+    def test_check_pre_push_cli_exit_codes(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            _write_config(root, LOCAL_ENFORCE_CFG)
+
+            good_old = _commit_sha(root, "STORY-001: base")
+            good_new = _commit_sha(root, "STORY-002: fine")
+            good = subprocess.run(
+                [sys.executable, str(SCRIPTS_DIR / "git_policy.py"), "check-pre-push",
+                 "origin", "file:///nonexistent", "--project-root", str(root)],
+                input=f"refs/heads/main {good_new} refs/heads/main {good_old}\n",
+                capture_output=True, text=True,
+            )
+            self.assertEqual(good.returncode, 0, good.stderr)
+
+            bad_new = _commit_sha(root, "no reference at all")
+            bad = subprocess.run(
+                [sys.executable, str(SCRIPTS_DIR / "git_policy.py"), "check-pre-push",
+                 "origin", "file:///nonexistent", "--project-root", str(root)],
+                input=f"refs/heads/main {bad_new} refs/heads/main {good_new}\n",
+                capture_output=True, text=True,
+            )
+            self.assertEqual(bad.returncode, 1)
+            self.assertIn(bad_new[:12], bad.stderr)
+
+
+# ---------------------------------------------------------------------------
+# STORY-012: the `pre-push` hook installer and installed hook, extending
+# STORY-011's chained/manual/ci_only installation mechanism for a second,
+# independent hook file rather than overwriting it.
+# ---------------------------------------------------------------------------
+
+
+def _run_pre_push_hook(root: Path, stdin_text: str) -> subprocess.CompletedProcess:
+    """Invoke the *installed* pre-push hook script directly with hand
+    -built stdin, exactly as Git would invoke it -- but without ever
+    running `git push`, `git fetch`, or `git clone` against any remote,
+    real or simulated (this story's explicit "no network access, no real
+    remote pushes" requirement)."""
+    hook_path = root / ".git" / "hooks" / "pre-push"
+    return subprocess.run(
+        [str(hook_path), "origin", "file:///nonexistent-remote"],
+        cwd=str(root),
+        input=stdin_text,
+        capture_output=True,
+        text=True,
+    )
+
+
+@unittest.skipUnless(_GIT_AVAILABLE, "git executable not available")
+class PrePushInstallationTests(unittest.TestCase):
+    def test_plan_reports_chained_with_no_existing_hook(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            plan = git_policy.plan_pre_push_hook_install(root)
+            self.assertEqual(plan.status, git_policy.INSTALL_CHAINED)
+            self.assertIsNone(plan.existing_hook_path)
+
+    def test_apply_writes_an_executable_managed_hook(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            plan = git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            self.assertEqual(plan.status, git_policy.INSTALL_CHAINED)
+            hook_path = root / ".git" / "hooks" / "pre-push"
+            self.assertTrue(hook_path.is_file())
+            self.assertTrue(hook_path.stat().st_mode & stat.S_IXUSR)
+            text = hook_path.read_text(encoding="utf-8")
+            self.assertIn(str(SCRIPTS_DIR), text)
+            self.assertIn("Managed by AgentForge", text)
+
+    def test_hook_allows_a_compliant_push_range(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            _write_config(root, LOCAL_ENFORCE_CFG)
+            git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            old_tip = _commit_sha(root, "STORY-001: base")
+            new_tip = _commit_sha(root, "STORY-002: more")
+            result = _run_pre_push_hook(root, f"refs/heads/main {new_tip} refs/heads/main {old_tip}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_hook_rejects_a_noncompliant_outgoing_commit(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            _write_config(root, LOCAL_ENFORCE_CFG)
+            git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            old_tip = _commit_sha(root, "STORY-001: base")
+            new_tip = _commit_sha(root, "no reference at all")
+            result = _run_pre_push_hook(root, f"refs/heads/main {new_tip} refs/heads/main {old_tip}\n")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(new_tip[:12], result.stderr)
+
+    def test_hook_catches_an_older_noncompliant_commit_behind_a_compliant_head(self) -> None:
+        # The pushed-commit analog of tests/test_git_policy.py's
+        # PrePushTests::test_compliant_head_does_not_mask_an_older_
+        # noncompliant_commit, but exercised through the real installed
+        # hook script end to end.
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            _write_config(root, LOCAL_ENFORCE_CFG)
+            git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            remote_tip = _commit_sha(root, "STORY-001: already on the remote")
+            bad = _commit_sha(root, "no reference, buried in the middle")
+            head = _commit_sha(root, "STORY-002: compliant HEAD")
+            result = _run_pre_push_hook(root, f"refs/heads/main {head} refs/heads/main {remote_tip}\n")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(bad[:12], result.stderr)
+            self.assertNotIn(head[:12], result.stderr)
+
+    def test_hook_allows_deletion_even_under_enforce(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            _write_config(root, LOCAL_ENFORCE_CFG)
+            git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            some_sha = _commit_sha(root, "STORY-001: whatever")
+            zero = "0" * 40
+            result = _run_pre_push_hook(root, f"(delete) {zero} refs/heads/old {some_sha}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_reinstall_is_idempotent(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            first = (root / ".git" / "hooks" / "pre-push").read_text(encoding="utf-8")
+            plan2 = git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            self.assertEqual(plan2.status, git_policy.INSTALL_CHAINED)
+            second = (root / ".git" / "hooks" / "pre-push").read_text(encoding="utf-8")
+            self.assertEqual(first, second)
+            self.assertFalse(
+                (root / ".git" / "hooks" / git_policy.PRE_PUSH_CHAINED_HOOK_BACKUP_NAME).exists()
+            )
+
+
+@unittest.skipUnless(_GIT_AVAILABLE, "git executable not available")
+class ExistingPrePushHookChainingTests(unittest.TestCase):
+    """STORY-012's analog of ExistingHookChainingTests above: an
+    unrecognized, pre-existing `pre-push` hook (the "existing pre-push
+    manager" scenario the story's minimum test coverage calls for) must be
+    preserved and chain-called, never silently overwritten."""
+
+    def _write_marker_hook(self, root: Path, marker: Path, exit_code: int = 0) -> None:
+        hooks_dir = root / ".git" / "hooks"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        hook = hooks_dir / "pre-push"
+        hook.write_text(
+            "#!/bin/sh\n"
+            "cat > /dev/null\n"
+            f"echo ran >> {marker}\n"
+            f"exit {exit_code}\n",
+            encoding="utf-8",
+        )
+        hook.chmod(hook.stat().st_mode | 0o111)
+
+    def test_preexisting_hook_is_detected_and_never_silently_overwritten(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            self._write_marker_hook(root, root / "marker.txt")
+            plan = git_policy.plan_pre_push_hook_install(root)
+            self.assertEqual(plan.status, git_policy.INSTALL_CHAINED)
+            self.assertIsNotNone(plan.existing_hook_path)
+            self.assertFalse(plan.existing_hook_is_ours)
+
+    def test_preexisting_hook_is_preserved_and_chain_called(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            marker = root / "marker.txt"
+            self._write_marker_hook(root, marker)
+            _write_config(root, LOCAL_ENFORCE_CFG)
+
+            git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+
+            backup = root / ".git" / "hooks" / git_policy.PRE_PUSH_CHAINED_HOOK_BACKUP_NAME
+            self.assertTrue(backup.is_file())
+
+            old_tip = _commit_sha(root, "STORY-001: base")
+            new_tip = _commit_sha(root, "STORY-002: valid reference")
+            result = _run_pre_push_hook(root, f"refs/heads/main {new_tip} refs/heads/main {old_tip}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(marker.exists())
+            self.assertEqual(marker.read_text(encoding="utf-8").strip(), "ran")
+
+    def test_preexisting_hook_failure_blocks_the_push(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            self._write_marker_hook(root, root / "marker.txt", exit_code=1)
+            _write_config(root, LOCAL_ENFORCE_CFG)
+
+            git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+
+            old_tip = _commit_sha(root, "STORY-001: base")
+            new_tip = _commit_sha(root, "STORY-002: valid reference")
+            # Even a fully compliant AgentForge-valid range must still be
+            # rejected because the chained, pre-existing hook itself fails
+            # -- AgentForge must never silently override another hook's
+            # veto (matching ExistingHookChainingTests's commit-msg
+            # equivalent above).
+            result = _run_pre_push_hook(root, f"refs/heads/main {new_tip} refs/heads/main {old_tip}\n")
+            self.assertNotEqual(result.returncode, 0)
+
+    def test_reinstall_does_not_stack_backups(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            self._write_marker_hook(root, root / "marker.txt")
+
+            git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            backup_text = (root / ".git" / "hooks" / git_policy.PRE_PUSH_CHAINED_HOOK_BACKUP_NAME).read_text(
+                encoding="utf-8"
+            )
+            git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            backup_text_2 = (root / ".git" / "hooks" / git_policy.PRE_PUSH_CHAINED_HOOK_BACKUP_NAME).read_text(
+                encoding="utf-8"
+            )
+            self.assertEqual(backup_text, backup_text_2)
+            plan = git_policy.plan_pre_push_hook_install(root)
+            self.assertTrue(plan.existing_hook_is_ours)
+
+
+@unittest.skipUnless(_GIT_AVAILABLE, "git executable not available")
+class PrePushHookManagerDetectionTests(unittest.TestCase):
+    def test_husky_present_yields_manual_plan_and_writes_nothing(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / ".husky").mkdir()
+
+            plan = git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            self.assertEqual(plan.status, git_policy.INSTALL_MANUAL)
+            self.assertIn("Husky", plan.reason)
+            self.assertFalse((root / ".git" / "hooks" / "pre-push").exists())
+
+    def test_pre_commit_config_present_yields_manual_plan_and_writes_nothing(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / ".pre-commit-config.yaml").write_text("repos: []\n", encoding="utf-8")
+
+            plan = git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            self.assertEqual(plan.status, git_policy.INSTALL_MANUAL)
+            self.assertIn("pre-commit", plan.reason)
+            self.assertFalse((root / ".git" / "hooks" / "pre-push").exists())
+
+    def test_custom_core_hooks_path_is_respected(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            _git(root, "config", "core.hooksPath", ".githooks")
+
+            plan = git_policy.apply_pre_push_hook_install(root, SCRIPTS_DIR)
+            self.assertEqual(plan.status, git_policy.INSTALL_CHAINED)
+            self.assertTrue((root / ".githooks" / "pre-push").is_file())
+            self.assertFalse((root / ".git" / "hooks" / "pre-push").exists())
+
+
+@unittest.skipUnless(_GIT_AVAILABLE, "git executable not available")
+class CombinedInstallCliTests(unittest.TestCase):
+    """The single `install` CLI subcommand extended to install both
+    `commit-msg` (STORY-011) and `pre-push` (STORY-012) hooks in one call,
+    without either one overwriting the other or an unrelated hook
+    manager."""
+
+    def test_install_cli_installs_both_hooks(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS_DIR / "git_policy.py"), "install",
+                 "--project-root", str(root), "--scripts-dir", str(SCRIPTS_DIR)],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((root / ".git" / "hooks" / "commit-msg").is_file())
+            self.assertTrue((root / ".git" / "hooks" / "pre-push").is_file())
+
+    def test_install_cli_reports_manual_for_both_when_husky_present(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / ".husky").mkdir()
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS_DIR / "git_policy.py"), "install",
+                 "--project-root", str(root), "--scripts-dir", str(SCRIPTS_DIR)],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertFalse((root / ".git" / "hooks" / "commit-msg").exists())
+            self.assertFalse((root / ".git" / "hooks" / "pre-push").exists())
 
 
 if __name__ == "__main__":

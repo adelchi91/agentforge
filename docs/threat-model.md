@@ -431,6 +431,166 @@ here rather than silently dropped:
   touch). Recorded as a cross-story gap for whichever later story extends
   that schema, per the "Exemptions" section above.
 
+## Pushed-commit range traceability (STORY-012)
+
+`commit-msg` (STORY-011, above) only ever validates one commit at the
+exact moment it is created. A commit made with `--no-verify`, amended,
+rebased in from a branch that never had the hook installed, or
+cherry-picked from elsewhere can still reach a shared remote without ever
+having been checked — the hook that ran when it was first written cannot
+see it again later. `scripts/git_policy.py`'s `pre-push` support (a real
+Git `pre-push` hook, `templates/git-hooks/pre-push`, plus the CI-facing
+`check-range` command) closes that gap by validating **every** commit a
+`git push` would introduce to the remote — not only each pushed ref's
+tip — reusing STORY-011's own `validate_commit_message`/exemption logic
+so the two stories can never disagree about what "compliant" means.
+
+### What is checked, and how
+
+- Git invokes `pre-push` with the remote name/URL as arguments and one
+  `<local-ref> <local-sha> <remote-ref> <remote-sha>` line per updated ref
+  on stdin. `parse_pre_push_stdin` parses that real protocol; a malformed
+  line is recorded as a diagnostic and skipped rather than aborting the
+  whole check (`ParsePrePushStdinTests`, `PrePushTests`
+  ::test_malformed_input_line_is_reported_but_valid_lines_still_processed).
+- `compute_outgoing_range` derives each ref's outgoing commits with `git
+  rev-list`: a deletion (all-zero local SHA) has none; an update to an
+  existing ref uses `remote_sha..local_sha` (correct for both an ordinary
+  fast-forward and a force push / non-ancestor remote tip, since `A..B`
+  always means "reachable from B, not from A" regardless of ancestry); a
+  brand-new ref (all-zero remote SHA) — and, as a deliberately
+  conservative fallback, a remote SHA this repository does not have at
+  all (a **missing remote base**, e.g. it was never fetched) — examines
+  every commit reachable from the local tip, mirroring Git's own
+  documented sample `pre-push` hook's "new branch" handling rather than
+  guessing at a narrower boundary this repository cannot actually vouch
+  for.
+- `collect_outgoing_commits` deduplicates across every ref in the same
+  push (a commit reachable from two pushed branches is validated exactly
+  once), and `validate_commits` checks each unique commit's real message
+  (`git show -s --format=%B <sha>`, never `sys.argv` or shell text) with
+  the exact same `validate_commit_message`/`is_git_merge_commit`
+  STORY-011 already uses — no second, drifted copy of "is this message
+  compliant."
+- Because every commit in the range is validated (not only the ref tip),
+  a compliant `HEAD` can never mask an older noncompliant commit sitting
+  earlier in the same push
+  (`PrePushTests::test_compliant_head_does_not_mask_an_older_noncompliant_commit`,
+  exercised again end-to-end through the real installed hook script in
+  `test_git_hook_installation.py::PrePushInstallationTests
+  ::test_hook_catches_an_older_noncompliant_commit_behind_a_compliant_head`).
+- A commit's subject is only ever reported back (abbreviated SHA + a
+  control-character-stripped, length-capped subject) — never executed,
+  never interpolated into a shell command or another subprocess's
+  argument list. `check-pre-push`/`check-range` distinguish three exit
+  codes so a caller (a shell hook, or CI) can tell apart a broken
+  AgentForge configuration (`2`), a Git command that could not resolve
+  the requested range at all (`3`), and a genuine traceability violation
+  (`1`) — never the same "something failed" code for all three.
+- A deletion push (`(delete) <zero> <ref> <old-sha>`) is always allowed:
+  there is no new commit to validate, and there is currently no
+  `.agentforge/config.json` field to configure a stricter policy (e.g.
+  "deny deleting protected branches") — extending `scripts/config.py`'s
+  closed schema for that is out of this story's stated scope, the same
+  deliberate deferral STORY-011 recorded above for a configurable
+  exemption list, not an oversight.
+
+### Bypass instructions and limitations (read this before relying on this layer)
+
+Every bypass STORY-011 documents above for `commit-msg` (`--no-verify`,
+an uninstalled hook after a fresh clone, `core.hooksPath` redirected or
+unset locally, a server-side/API push that never runs a local Git client
+at all, a stale plugin installation) applies identically to `pre-push` —
+it is the same class of client-side mechanism, installed the same way,
+with the same escape hatches. Two points specific to range validation:
+
+- **A large "examine all commits" range.** The new-ref and
+  missing-remote-base fallback in `compute_outgoing_range` deliberately
+  validates every ancestor of the local tip when it has no narrower,
+  trustworthy boundary — the same choice Git's own sample `pre-push` hook
+  makes for a new branch. This is conservative (it may re-validate
+  commits that are already compliant and already on the remote) rather
+  than silently narrowing the range and risking a missed noncompliant
+  commit, but it means a very large first push of a long-lived branch
+  re-checks its entire history rather than only what is actually new to
+  the remote. A known, accepted performance cost, not a correctness gap.
+- **A rewritten commit that was never re-pushed is never re-checked.**
+  `pre-push` validates the commits a specific `git push` invocation is
+  about to send. A commit that already reached the remote before this
+  hook existed, and is never pushed again, is never retroactively
+  checked by this layer at all.
+
+**The mitigation for all of the above is the CI-facing `check-range`
+command** (`python3 scripts/git_policy.py check-range <base> <head>
+--project-root <checkout>`), run as a required status check under branch
+protection — the STORY-012 analog of STORY-011's `check-commit` fallback,
+for exactly the same reason: a server-side/CI check a human cannot
+silently opt out of on their own machine is the only layer here that
+approaches a real boundary (STORY-020 covers wiring it into CI).
+
+### Existing hook managers are detected, never silently overwritten
+
+`plan_pre_push_hook_install`/`apply_pre_push_hook_install` extend the
+exact same chained/manual/ci_only mechanism STORY-011 built for
+`commit-msg` (above) to a second, independent hook file, reusing the same
+`scripts.setup.detect_hook_managers` detection and effective-hooks-directory
+resolution rather than re-deriving either: Husky or the `pre-commit`
+framework yields a `manual` plan (nothing written, documented
+instructions returned) for `pre-push` exactly as it does for
+`commit-msg`; an unrecognized existing `pre-push` script is renamed to
+`pre-push.pre-agentforge` and chain-called first, aborting the push if it
+fails, before the installed AgentForge check runs — the "existing pre-push
+manager" scenario `tests/test_git_hook_installation.py
+::ExistingPrePushHookChainingTests` exercises end to end. `commit-msg` and
+`pre-push` are planned, installed, and marker-detected completely
+independently (separate marker strings, separate backup filenames), so
+installing or reinstalling one never touches the other's file. Because a
+`pre-push` hook's stdin is a pipe that can only be read once,
+`templates/git-hooks/pre-push` buffers it to a temp file before chaining,
+so the same ref-update lines reach both a chained pre-existing hook and
+AgentForge's own check, in that order, without either one starving the
+other of input.
+
+### Findings from independent code review
+
+STORY-012's implementation went through the same two-axis review
+(Standards + Spec) STORY-011 records above, against this story's own
+diff. Confirmed findings were fixed in the same pass:
+
+- **Duplicated `traceability.mode` lookup.** `validate_commit_message`
+  (STORY-011) and the new `_evaluate_shas`/`run_pre_push_check`/
+  `run_range_check` each independently unwrapped
+  `cfg["traceability"]["mode"]`. Factored into one `_mode_from_cfg`
+  helper every caller now shares, so there is exactly one place that
+  decides what the effective mode is, not two copies that could drift
+  apart — the same "one implementation, not a Python copy and a drifted
+  second one" principle STORY-011 already applies elsewhere in this
+  module.
+- **`check-range`'s `base`/`head` were not validated before being
+  concatenated into a `base..head` range string** passed to `git
+  rev-list`, unlike the pre-push path, where every SHA is hex-shape
+  -validated before use. A value starting with `-` could be misread as a
+  `git rev-list` option rather than a revision. `_looks_like_a_git_option`
+  now rejects any `base`/`head` starting with `-` up front (no valid Git
+  ref or object id ever starts with `-`), reported as a Git-range failure
+  (exit `3`) rather than being handed to the subprocess call at all.
+- **CLI-level exit-code coverage was partial.** The initial test pass
+  only exercised exit codes `0`/`1` through an actual `check-pre-push`/
+  `check-range` subprocess invocation; codes `2` (config error) and `3`
+  (Git-range error) were only exercised at the Python-function level.
+  Added subprocess-level tests for both codes on both commands
+  (`CheckRangeCommandTests::test_check_range_cli_subprocess_config_error_exit_code`/
+  `::test_check_range_cli_subprocess_git_range_error_exit_code`,
+  `CheckPrePushCliExitCodeTests`).
+
+One review observation was noted but not changed: `CommitOffense.sha`
+(the full, un-abbreviated SHA) is populated but only `.abbrev` is
+currently read by any report or test. This is left as-is deliberately —
+it is a small, harmless piece of a public-ish result record that a future
+caller (e.g. a richer CI annotation) may want the full SHA for, not
+duplicated or drifted logic, so removing it would trade a plausible
+future convenience for no correctness or clarity gain.
+
 ## Never re-executes the command under test
 
 Every classification in this module is pure Python string/token analysis
