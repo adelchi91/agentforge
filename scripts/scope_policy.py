@@ -12,11 +12,12 @@ Two independent policies, deliberately kept apart (STORY-013 requirement:
 
   - `classify_structured_tool()` — exact, name-based classification for
     Claude/Codex structured tools (Write/Edit/MultiEdit/NotebookEdit/
-    apply_patch vs. everything else). No canonical path/allow-list
-    checking is implemented here: that is STORY-014's scope
-    ("Canonicalize paths and expose honest scope modes"). This module
-    only decides whether a structured call is attributable to a
-    configured agent under `strict-agent` mode.
+    apply_patch vs. everything else). Canonical path/allow-list
+    enforcement (STORY-014: "Canonicalize paths and expose honest scope
+    modes") lives in `scripts/path_policy.py` and is wired in below, in
+    `_decide_structured`, for `deny-structured` and `strict-agent` modes
+    only — `observe` and `ask` never gate on path, and `off` never
+    evaluates anything at all.
   - `classify_bash_command()` — best-effort static classification of a
     Bash command string into `known-read`, `known-write`,
     `known-destructive`, or `ambiguous`. This can never be complete
@@ -53,6 +54,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import config as agentforge_config  # noqa: E402
+from scripts import path_policy  # noqa: E402
 
 # --------------------------------------------------------------------------
 # Categories
@@ -437,8 +439,10 @@ def classify_bash_command(command: str) -> BashClassification:
 
 def classify_structured_tool(tool_name: str) -> str:
     """Exact, name-based classification for structured (non-Bash) tools.
-    No path/allow-list canonicalization is performed here — see the module
-    docstring and docs/threat-model.md; that is STORY-014's scope."""
+    No path/allow-list canonicalization happens here -- that is
+    `scripts/path_policy.py`'s job, wired in below by `_decide_structured`
+    for `deny-structured`/`strict-agent` modes; see the module docstring
+    and docs/threat-model.md."""
     if isinstance(tool_name, str) and tool_name.lower() in STRUCTURED_WRITE_TOOL_NAMES:
         return KNOWN_WRITE
     return KNOWN_READ
@@ -509,8 +513,47 @@ def _decide_bash(
     raise ValueError(f"unhandled scope.mode: {mode!r}")
 
 
+def _decide_structured_write_path(
+    tool_name: str,
+    tool_input: dict,
+    project_root: Path,
+    agent_type: str,
+    scope_agents: dict,
+) -> Decision:
+    """Canonical path enforcement (STORY-014) for one structured write
+    call already known to belong to a configured agent (`agent_type` is
+    guaranteed present in `scope_agents` by both callers below). Shared by
+    `deny-structured` and `strict-agent` so the two modes apply the exact
+    same path logic, and look up the agent's allow-list exactly once,
+    after attribution/mode gating has decided enforcement applies."""
+    allow_entries = scope_agents[agent_type].get("allow", [])
+    raw_target = path_policy.extract_target_path(tool_input)
+    if raw_target is None:
+        return Decision(
+            DENY,
+            f"{tool_name} write has no recognizable target path in tool_input "
+            "(checked file_path/notebook_path/path/file)",
+            KNOWN_WRITE,
+        )
+
+    result = path_policy.check_path(project_root, raw_target, allow_entries)
+    if result.allowed:
+        return Decision(
+            ALLOW, f"{tool_name} target {raw_target!r} is in scope: {result.reason}", KNOWN_WRITE
+        )
+    return Decision(
+        DENY, f"{tool_name} target {raw_target!r} is out of scope: {result.reason}", KNOWN_WRITE
+    )
+
+
 def _decide_structured(
-    tool_name: str, category: str, mode: str, agent_type: Optional[str], scope_agents: dict
+    tool_name: str,
+    tool_input: dict,
+    category: str,
+    mode: str,
+    agent_type: Optional[str],
+    scope_agents: dict,
+    project_root: Path,
 ) -> Decision:
     if mode == "observe":
         return Decision(
@@ -520,21 +563,33 @@ def _decide_structured(
     if mode == "ask":
         # Structured tools are exact by name; only writes are worth a
         # confirmation prompt, and even then only as an early UX nudge —
-        # canonical path checking is STORY-014's job.
+        # canonical path checking is reserved for the blocking modes below.
         if category == KNOWN_WRITE:
             return Decision(ASK, f"{tool_name} is a structured write call", category)
         return Decision(ALLOW, f"{tool_name} classified {category}", category)
 
     if mode == "deny-structured":
-        # Full enforcement (canonical path checks against scope.agents
-        # allow-lists) is STORY-014's scope. STORY-013 only lays the
-        # foundation: it does not deny structured writes on its own, so
-        # this must never be read as "deny-structured is enforced" yet.
-        return Decision(
-            ALLOW,
-            f"{tool_name} classified {category}; canonical path enforcement "
-            "is not implemented until STORY-014",
-            category,
+        # STORY-014: real canonical path enforcement, but scoped by
+        # design to agents named in scope.agents -- "agents" is the only
+        # allow-list this config section has (docs/agentforge-config.md).
+        # A call with no agent_type at all (the ordinary primary-session
+        # case: agent_type is documented as optional outside subagent
+        # calls) or an agent_type not present in scope.agents has no
+        # configured scope to check against, so deny-structured does not
+        # restrict it. This is the explicit, tested missing/unknown-agent
+        # behavior for this mode -- see docs/threat-model.md and contrast
+        # with strict-agent below, which denies exactly this case.
+        if category != KNOWN_WRITE:
+            return Decision(ALLOW, f"{tool_name} classified {category}", category)
+        if not agent_type or agent_type not in scope_agents:
+            return Decision(
+                ALLOW,
+                f"deny-structured has no configured scope for agent_type={agent_type!r}; "
+                f"{tool_name} is not restricted",
+                category,
+            )
+        return _decide_structured_write_path(
+            tool_name, tool_input, project_root, agent_type, scope_agents
         )
 
     if mode == "strict-agent":
@@ -556,11 +611,8 @@ def _decide_structured(
             return Decision(
                 ALLOW, f"strict-agent: {agent_type!r} may run {tool_name} ({category})", category
             )
-        return Decision(
-            ALLOW,
-            f"strict-agent: {agent_type!r} may run {tool_name}; canonical path enforcement "
-            "is not implemented until STORY-014",
-            category,
+        return _decide_structured_write_path(
+            tool_name, tool_input, project_root, agent_type, scope_agents
         )
 
     raise ValueError(f"unhandled scope.mode: {mode!r}")
@@ -572,10 +624,21 @@ def evaluate(
     agent_type: Optional[str],
     mode: str,
     scope_agents: dict,
+    project_root: Optional[Path] = None,
 ) -> Decision:
     """Dispatch a single PreToolUse call to the Bash or structured-tool
     policy. `mode` must already be one of the non-"off" scope.mode values
-    (main() short-circuits "off" before calling this)."""
+    (main() short-circuits "off" before calling this).
+
+    `project_root` anchors canonical path enforcement (STORY-014) for
+    structured writes under `deny-structured`/`strict-agent`; it is
+    ignored by every other mode and by Bash classification. Defaults to
+    the current working directory, matching how `main()` derives it from
+    the hook payload's `cwd`.
+    """
+    if project_root is None:
+        project_root = Path.cwd()
+
     if tool_name in ("Bash", "bash"):
         command = tool_input.get("command")
         if not isinstance(command, str) or not command.strip():
@@ -584,7 +647,9 @@ def evaluate(
         return _decide_bash(classification, mode, agent_type, scope_agents)
 
     category = classify_structured_tool(tool_name)
-    return _decide_structured(tool_name, category, mode, agent_type, scope_agents)
+    return _decide_structured(
+        tool_name, tool_input, category, mode, agent_type, scope_agents, project_root
+    )
 
 
 # --------------------------------------------------------------------------
@@ -627,10 +692,18 @@ def _response_json(decision: Decision) -> str:
     )
 
 
-def _project_config_path(payload: Optional[dict]) -> Path:
+def _project_root(payload: Optional[dict]) -> Path:
+    """The project root for both config lookup and canonical path
+    enforcement (STORY-014): the hook payload's `cwd`, or the process's
+    own working directory when `cwd` is absent (matching `evaluate()`'s
+    own default so a direct call and a `main()`-driven call resolve
+    identically)."""
     cwd_value = payload.get("cwd") if payload else None
-    cwd = Path(cwd_value) if isinstance(cwd_value, str) and cwd_value else Path.cwd()
-    return cwd / ".agentforge" / "config.json"
+    return Path(cwd_value) if isinstance(cwd_value, str) and cwd_value else Path.cwd()
+
+
+def _project_config_path(payload: Optional[dict]) -> Path:
+    return _project_root(payload) / ".agentforge" / "config.json"
 
 
 def _load_scope_config(config_path: Path) -> tuple[dict, list]:
@@ -684,7 +757,9 @@ def main(argv: Optional[list] = None) -> int:
     if not isinstance(scope_agents, dict):
         scope_agents = {}
 
-    decision = evaluate(tool_name, tool_input, agent_type, mode, scope_agents)
+    decision = evaluate(
+        tool_name, tool_input, agent_type, mode, scope_agents, project_root=_project_root(payload)
+    )
     print(_response_json(decision))
     if mode == "observe":
         _warn(decision.reason)
