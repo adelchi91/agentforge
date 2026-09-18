@@ -1,0 +1,68 @@
+name: Plugin evals
+
+# STORY-020: "Add plugin eval cases... Plugin eval results and known
+# variance are published with the release candidate." `claude plugin
+# eval` is a real, working command (verified interactively: `claude
+# plugin eval --help` and `claude plugin eval init --help` both resolve
+# and document the full case/grader schema this repository's evals/
+# already use) -- but it is gated behind a **per-account, Anthropic-side
+# early-access enablement**, not a local flag, environment variable, or
+# `claude update`. That gate could not be lifted in the sandbox this
+# story was implemented in, so this workflow could not be executed
+# end-to-end before being committed -- see docs/release-v2.md's "Plugin
+# evals" section for exactly what a human with early access needs to do
+# to actually run it and attach results to a release.
+#
+# Deliberately manual-only (workflow_dispatch), not on every push/PR:
+# each run costs real judge-model tokens across `evals/`'s cases x 3
+# runs each, and requires ANTHROPIC_API_KEY as a repository secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: "Minimum per-case score to pass (0..1)"
+        required: false
+        default: "1.0"
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    name: claude plugin eval . --eval-dir evals
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Claude Code CLI
+        run: curl -fsSL https://claude.ai/install.sh | bash
+
+      - name: Add installed CLI to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run plugin evals
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+            echo "::error::ANTHROPIC_API_KEY repository secret is not set. This job" \
+                 "also requires the running account to have claude plugin eval's" \
+                 "early-access flag enabled -- see docs/release-v2.md."
+            exit 1
+          fi
+          claude plugin eval . --eval-dir evals \
+            --threshold "${{ github.event.inputs.threshold || '1.0' }}" \
+            --no-publish \
+            --json "$GITHUB_WORKSPACE/evals-result.json"
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-eval-results
+          path: |
+            evals-result.json
+            evals/results/
+          if-no-files-found: ignore

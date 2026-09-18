@@ -280,3 +280,113 @@ removed until a later story retires it (see
     already-migrated) built from what `examples/` and
     `tests/fixtures/v1/` actually contain, without touching either
     checksum-frozen tree.
+
+### Added (STORY-020)
+
+**v2 is not yet declared stable** — see "Not done" below before reading
+this as a release.
+
+- `.github/workflows/ci.yml`: required CI on every push/PR — unit tests
+  across a Python (3.10-3.13) × OS (`ubuntu-latest`, `macos-latest`;
+  `windows-latest` excluded and documented, since `scripts/git_policy.py`/
+  `scripts/setup.py`/`scripts/scope_policy.py` call `os.chmod` and install
+  POSIX-shebang Git hooks) matrix, JSON validation (every tracked
+  `*.json` except the one intentionally-malformed test fixture), a
+  shebang-based shell-syntax check (`install.sh`, the two Git hook
+  templates), a `git diff --check` across the PR's merge-base range, and
+  `claude plugin validate . --strict`. Verified locally end-to-end
+  (every embedded shell snippet run directly against this repository;
+  YAML parsed with PyYAML) — live GitHub Actions execution was not
+  available in this sandbox to verify.
+- `.github/workflows/integration.yml`: the pinned-known-good-vs-latest
+  upstream `mattpocock-skills` matrix STORY-020 asks for, wiring
+  STORY-003's existing opt-in live mechanism
+  (`AGENTFORGE_LIVE_INTEGRATION=1`) into CI rather than duplicating it.
+  Categorizes a failure as upstream drift (pinned passes, latest fails)
+  or an AgentForge-side/CLI-version regression (pinned itself fails).
+  Fixing this to actually run on a stock CI runner surfaced a real,
+  previously-undocumented gap: `claude plugin marketplace add owner/repo`
+  resolves to an SSH clone that GitHub refuses with no registered key
+  even for a public repo (verified directly) — `tests/integration/test_plugin_coexistence.py`'s
+  live test classes now add marketplaces by explicit `https://github.com/...`
+  URL instead, which clones anonymously; `docs/compatibility.md` carries
+  a dated correction of its earlier "unauthenticated SSH" claim.
+- `tests/integration/test_plugin_coexistence.py`: refactored
+  `LiveMattCoexistenceTests`'s three marketplace-parametrized assertions
+  into a shared `MattCoexistenceMixin`, and added
+  `PinnedMattCoexistenceTests` — the same assertions run against
+  `tests/fixtures/pinned_mattpocock_marketplace/`, a local marketplace
+  fixture that resolves the real `mattpocock-skills` plugin at the fixed
+  commit `docs/compatibility.md` already recorded as tested-good
+  (version 1.2.3, `3cca18b368ae95cdbdebbff572ccafa662551015`), using the
+  exact same `{source: url, url, sha}` shape `claude-plugins-official`'s
+  own marketplace entry uses — not a fork or vendored copy. Both classes
+  verified live in this session: currently green on both legs (no
+  upstream drift detected as of 2026-09-18).
+- `.github/workflows/plugin-eval.yml`: manual-only (`workflow_dispatch`)
+  eval runner, since `claude plugin eval` reported "currently in early
+  access" on every invocation in this sandbox — confirmed to be a
+  per-account, Anthropic-side enablement with no local settings/env-var
+  toggle, not something this story could work around.
+- `evals/setup/` (new eval category): setup preserves existing
+  `CLAUDE.md`/`AGENTS.md` prose and Matt Pocock's own block, follows a
+  plan-then-approve flow rather than claiming files are already written,
+  and stops before writing anything when `mattpocock-skills` is missing.
+- One "does not fire" (`max: 0`, `tool_used`) grader added per skill that
+  previously had only a positive `skill-fires.md` (`min: 1`) indicator:
+  `setup/unrelated-question-does-not-trigger/`,
+  `work-contract/unrelated-question-does-not-trigger/`,
+  `reconcile-docs/single-document-no-proposal-does-not-trigger/`, and a
+  `skill-does-not-fire.md` grader added to migration-safety's existing
+  `ordinary-feature-work/` case. `evals/README.md` documents the full
+  category table and the suite's deliberate cost/scope bound.
+- `scripts/check_version_sync.py`: verifies `VERSION`,
+  `.claude-plugin/plugin.json`'s `"version"`, `CHANGELOG.md`'s most
+  recent release heading, and (if ever present) a `"version"` field in
+  `.claude-plugin/marketplace.json` all name the same version — reports
+  every mismatch found, not just the first. `tests/test_version_sync.py`
+  covers the real repository (a regression guard against future desync)
+  plus every malformed-input and mismatch shape.
+- `docs/release-v2.md`: the consolidated release/README-facing document
+  STORY-020 asks for — installation, coexistence, upgrade, uninstall,
+  migration rollback, the assurance-mode and compatibility-matrix
+  tables, the CI/eval/release-process design, an honest "what actually
+  changed for v1 users" compatibility-break list (the plugin rename, the
+  post-edit auto-fix removal, the migrated-project `scope.mode`
+  downgrade, the un-auto-corrected Codex `Stop`/`SessionEnd` stale
+  mapping), and the pilot gate status. Cross-references rather than
+  duplicates every prior story's own doc.
+- `docs/pilot-report-template.md`: the ready-to-fill pilot report
+  structure from STORY-020's acceptance criteria (five required work
+  items — feature, bug, refactor, docs-only, migration; baseline-vs-v2
+  metrics; a migration-rollback-exercised checklist; a severity-high
+  defect log; a Go/No-Go section).
+- `README.md`: a short "v2 status" banner pointing at `docs/release-v2.md`.
+- Release process decision, documented in `docs/release-v2.md`: plain
+  `CHANGELOG.md` + `VERSION` + `plugin.json`, reviewed in the same PR as
+  the change and mechanically checked by `check_version_sync.py`, rather
+  than adopting Changesets — this is a single-package, single-maintainer
+  Python plugin repository, not the multi-package JS monorepo shape
+  Changesets is built for.
+
+### Not done (this story's explicit, honest scope limit)
+
+- **The real pilot itself was not run.** STORY-020 requires piloting v2
+  on one real Python project across five real work items and recording
+  baseline-vs-v2 metrics; that needs real elapsed wall-clock time on a
+  real external project and cannot be produced inside one implementation
+  session without becoming exactly the fabricated "prompt confidence"
+  this story exists to reject. `docs/pilot-report-template.md` is the
+  structure; it is unfilled.
+  `docs/release-v2.md`'s "Pilot gate" section states this explicitly and
+  lists what a human needs to do next.
+- **`claude plugin eval . --eval-dir evals` was not executed in this
+  session** for the same reason noted above (per-account early-access
+  gate) — the new and existing eval cases are believed correct against
+  the documented case/grader schema but unverified by an actual run.
+- **v2.0.0 is not released.** `VERSION` and `.claude-plugin/plugin.json`
+  remain `2.0.0-dev`; this section is itself evidence for, not a
+  declaration of, the release.
+- **Live GitHub Actions execution of the three new workflows was not
+  verified** — only local execution of each step's underlying logic, per
+  `docs/release-v2.md`'s "Continuous integration" section.

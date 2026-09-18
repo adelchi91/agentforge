@@ -1,5 +1,14 @@
 # project-bootstrap
 
+> **v2 status:** a companion governance layer (setup, prepare-work,
+> work-contract, reconcile-docs, migration-safety, Git-level traceability,
+> graded scope policies, tested Codex parity) has been added alongside
+> the interview-based flow described below, and is **not yet declared
+> stable** — see [`docs/release-v2.md`](docs/release-v2.md) for
+> installation, coexistence, upgrade/uninstall/rollback, the assurance
+> and compatibility matrices, and exactly what is still outstanding
+> (a real-project pilot) before that changes.
+
 ## What this is
 
 `project-bootstrap` is a Claude Code command set and Codex bootstrap skill that generates a complete

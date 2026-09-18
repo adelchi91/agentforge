@@ -17,6 +17,23 @@ operations that reached GitHub used public, unauthenticated
 `git@github.com:...` SSH clones; no credential material was read from or
 written into any isolated config.
 
+> **STORY-020 correction (2026-09-18):** that SSH-clone claim was only
+> true because the machine that recorded this evidence happened to have a
+> GitHub-registered SSH key. Verified directly (pointing `GIT_SSH_COMMAND`
+> at an identity-less config): `claude plugin marketplace add owner/repo`
+> resolves to a `git@github.com:owner/repo.git` clone, and GitHub refuses
+> that with "Permission denied (publickey)" for a public repo with no
+> registered key at all — the opposite of unauthenticated. Passing the
+> explicit `https://github.com/owner/repo.git` URL instead clones
+> anonymously with no key required. `tests/integration/test_plugin_coexistence.py`'s
+> `LiveMattCoexistenceTests` and `PinnedMattCoexistenceTests` now add
+> marketplaces by explicit HTTPS URL for exactly this reason — it is what
+> makes them runnable on a stock GitHub Actions runner
+> (`.github/workflows/integration.yml`), which has no SSH key provisioned
+> by default. This page's own transcripts below still show the shorthand
+> form as originally run; treat "unauthenticated" in them as "used no
+> credentials I supplied," not "works with no SSH key present."
+
 ## Two coverage tiers
 
 1. **Offline, deterministic, run by default and in CI.**
