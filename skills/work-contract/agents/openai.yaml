@@ -1,0 +1,12 @@
+# Codex per-skill invocation policy (STORY-018). Schema/location verified
+# against https://learn.chatgpt.com/docs/build-skills (fetched
+# 2026-09-17); see docs/codex-compatibility.md for the full citation.
+#
+# `work-contract` is documented as model-invoked in
+# docs/plans/agentforge-v2-execution-plan.md's "Invocation model" section
+# -- a reusable discipline for writing/enriching a ticket's contract
+# fields, applied whenever the model is drafting or reviewing one, not
+# only when a user explicitly names the skill. Implicit invocation stays
+# at Codex's documented default (true).
+policy:
+  allow_implicit_invocation: true

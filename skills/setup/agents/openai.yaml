@@ -1,0 +1,18 @@
+# Codex per-skill invocation policy (STORY-018).
+#
+# Schema and location verified against the current Codex skills
+# documentation (https://learn.chatgpt.com/docs/build-skills, fetched
+# 2026-09-17 -- see docs/codex-compatibility.md for the full citation):
+# this file lives inside the skill's own directory as
+# `agents/openai.yaml` (one file per skill), not a single top-level
+# `agents/openai.yaml` covering every skill. `policy.allow_implicit_invocation`
+# defaults to true; setting it to false means the skill only activates on
+# explicit invocation (`$setup` in Codex), never because the model judged a
+# prompt matched the skill's `description`.
+#
+# `setup` is documented as user-invoked only in
+# docs/plans/agentforge-v2-execution-plan.md's "Invocation model" section
+# (`/agentforge:setup`) -- it changes project files and must never run
+# because the model merely thought a prompt sounded relevant.
+policy:
+  allow_implicit_invocation: false
