@@ -1,0 +1,12 @@
+# Codex per-skill invocation policy (STORY-018). Schema/location verified
+# against https://learn.chatgpt.com/docs/build-skills (fetched
+# 2026-09-17); see docs/codex-compatibility.md for the full citation.
+#
+# `reconcile-docs` is documented as model-invoked in
+# docs/plans/agentforge-v2-execution-plan.md's "Invocation model" section
+# -- it should trigger whenever the model is comparing a proposed spec or
+# ticket graph against reference documents, not only on an explicit
+# by-name request. Implicit invocation stays at Codex's documented
+# default (true).
+policy:
+  allow_implicit_invocation: true

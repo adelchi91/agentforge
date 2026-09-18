@@ -1,0 +1,12 @@
+# Codex per-skill invocation policy (STORY-018). Schema/location verified
+# against https://learn.chatgpt.com/docs/build-skills (fetched
+# 2026-09-17); see docs/codex-compatibility.md for the full citation.
+#
+# `prepare-work` is documented as user-invoked only in
+# docs/plans/agentforge-v2-execution-plan.md's "Invocation model" section
+# (`/agentforge:prepare-work <id>`) -- it resolves a tracker item, writes
+# `.agentforge/active-work.json`, and must only run against the work item
+# the user actually named, never a work item the model guessed at from
+# prompt text alone.
+policy:
+  allow_implicit_invocation: false

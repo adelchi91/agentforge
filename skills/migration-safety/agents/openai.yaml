@@ -1,0 +1,14 @@
+# Codex per-skill invocation policy (STORY-018). Schema/location verified
+# against https://learn.chatgpt.com/docs/build-skills (fetched
+# 2026-09-17); see docs/codex-compatibility.md for the full citation.
+#
+# `migration-safety` is documented as model-invoked in
+# docs/plans/agentforge-v2-execution-plan.md's "Invocation model" section
+# -- it must activate whenever the model recognizes the work at hand is
+# actually a migration (SKILL.md's own "classify the work first" step
+# already gates the phase ceremony), not only when a user names the skill
+# directly. Implicit invocation stays at Codex's documented default
+# (true); the skill's own classification step is what keeps it from
+# forcing phases onto ordinary feature work once triggered.
+policy:
+  allow_implicit_invocation: true
