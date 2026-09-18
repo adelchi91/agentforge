@@ -390,3 +390,15 @@ this as a release.
 - **Live GitHub Actions execution of the three new workflows was not
   verified** — only local execution of each step's underlying logic, per
   `docs/release-v2.md`'s "Continuous integration" section.
+
+### Fixed
+
+- `tests/test_codex_packaging.py` (STORY-018) imported stdlib `tomllib`
+  unconditionally; that module doesn't exist before Python 3.11, so
+  every test in the file failed to collect on py3.10 — caught by the
+  first real `ci.yml` run on both `ubuntu-latest` and `macos-latest`
+  (2026-09-19), exactly the gap local-only verification couldn't catch.
+  Falls back to `tomli` when the stdlib import fails; `ci.yml` installs
+  it with `pip install "tomli; python_version < '3.11'"` (a no-op on
+  3.11+). See `docs/release-v2.md`'s "Continuous integration" section
+  for the full account.

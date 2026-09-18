@@ -59,6 +59,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Real CI run (2026-09-18) caught what local execution couldn't:
+      # tests/test_codex_packaging.py's TOML validation used stdlib
+      # `tomllib`, which does not exist before Python 3.11 — every py3.10
+      # job failed on both OSes. `tomli` is that stdlib module's own
+      # pre-3.11 backport; the environment marker makes this a no-op on
+      # 3.11+, where the code already prefers the real stdlib module.
+      - name: Install tomli (Python 3.10 lacks stdlib tomllib)
+        run: pip install "tomli; python_version < '3.11'"
+
       - name: Run unit test suite
         run: python3 -m unittest discover -s tests -v
 

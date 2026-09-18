@@ -25,9 +25,13 @@ from __future__ import annotations
 import json
 import re
 import sys
-import tomllib
 import unittest
 from pathlib import Path
+
+try:
+    import tomllib  # stdlib, Python 3.11+
+except ModuleNotFoundError:  # Python 3.10: no stdlib tomllib yet
+    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:

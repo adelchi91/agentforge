@@ -206,15 +206,25 @@ Three workflows, deliberately separated by what they need:
     (`templates/git-hooks/commit-msg`, `templates/git-hooks/pre-push`).
     Windows support is not an explicit goal yet; this is a stated
     exclusion, not a silent gap.
-  - **Verified locally, not yet in live GitHub Actions**: this sandbox
-    has no way to execute a real GitHub Actions run. Every step's shell
-    logic (JSON validation excluding the one intentionally-malformed
-    fixture, the shebang-based shell-syntax scanner, the merge-base
-    `git diff --check` range, the categorization script in
-    `integration.yml`) was run locally against this repository and
-    produces the expected result; the YAML itself was parsed with
-    PyYAML to confirm it is at least syntactically valid. Treat the
-    first real run on GitHub as the actual end-to-end verification.
+  - **Verified live on GitHub Actions (2026-09-19), one real bug found
+    and fixed**: the first real run failed both `unit tests
+    (ubuntu-latest, py3.10)` and `unit tests (macos-latest, py3.10)`
+    while every other job (py3.11/3.12/3.13 on both OSes, JSON
+    validation, shell syntax, `git diff --check`,
+    `claude plugin validate --strict`) passed — exactly the kind of gap
+    this sandbox's local-only verification could not catch.
+    `tests/test_codex_packaging.py`'s TOML validation (STORY-018) did
+    `import tomllib` unconditionally; that module is Python 3.11+
+    stdlib only, so it does not exist on 3.10 and every test in that
+    module failed to even collect. Fixed by falling back to `tomli`
+    (`tomllib`'s own pre-3.11 backport) when the stdlib import fails,
+    and adding `pip install "tomli; python_version < '3.11'"` as a CI
+    step (a no-op on 3.11+, where the stdlib module is already
+    preferred) — verified both the fallback-import path and the full
+    `test_codex_packaging` suite locally under a simulated
+    `tomllib`-unavailable environment before pushing the fix. This is
+    the real end-to-end verification the note above once said was still
+    pending.
 - **`.github/workflows/integration.yml`** — the pinned-vs-latest
   upstream matrix (see "Compatibility matrix" above). Runs weekly, on
   demand, and (non-blocking, `continue-on-error: true` per leg) on a PR
