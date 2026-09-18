@@ -245,3 +245,38 @@ removed until a later story retires it (see
   no single canonical `sandbox_mode` enumeration, Codex's coarser sandbox
   granularity versus Claude's per-tool grants, and that AgentForge does
   not yet ship as an installable Codex plugin package).
+
+### Added (STORY-019)
+
+- `scripts/migrate_v1.py` and `skills/migrate-v1/SKILL.md`: a reversible
+  migration from `project-bootstrap`'s v1 scaffolds to v2, designed
+  against one central risk — irreversible data loss. Nothing is ever
+  deleted: superseded content moves to a timestamped
+  `.agentforge/migration-archive/<timestamp>/`, and every applied
+  migration writes a manifest `migrate_v1.py rollback` can replay exactly
+  to restore the previous hook registration and active files.
+  - Detects Claude, Codex, and mixed v1 scaffolds and classifies every
+    detected artifact into exactly one of `retained`/`transformed`/
+    `archived`/`manual_review`/`obsolete` — nothing is left unclassified.
+  - v1 stories convert to v2 tracker work items only after an explicit
+    preview/approval step, reusing STORY-005's plan/apply
+    approval-binding shape rather than a new confirmation mechanism;
+    original v1 IDs are preserved in the new item's metadata.
+  - v1's constitution/golden-rule content is extracted into the v2
+    managed constitution block without overwriting the rest of the
+    file's prose; v1 scopes convert to v2 policy modes, with an explicit
+    warning wherever a v1 project claimed Bash enforcement it never
+    actually had.
+  - v1 hooks are disabled only after the new v2 hooks are installed and
+    validated — a project is never left with neither hook active.
+  - `--dry-run` causes zero filesystem changes; running the migration
+    twice on the same project is a true no-op the second time, mirroring
+    STORY-008's re-prepare idempotence.
+  - `docs/migration-v1-to-v2.md` documents the full artifact-by-artifact
+    mapping and the judgment calls behind it, following the same
+    conventions as `docs/compatibility.md`/`docs/codex-compatibility.md`.
+  - `tests/fixtures/v1_projects/`: original fixtures (minimal Claude,
+    minimal Codex, Lagrangia-style, hand-edited, partially installed,
+    already-migrated) built from what `examples/` and
+    `tests/fixtures/v1/` actually contain, without touching either
+    checksum-frozen tree.
