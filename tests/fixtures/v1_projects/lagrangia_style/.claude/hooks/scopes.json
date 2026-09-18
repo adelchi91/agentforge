@@ -1,0 +1,16 @@
+{
+  "agents": {
+    "architect-multiagents": {
+      "allow": ["dessia-multiagents/", "service_contract.yaml"]
+    },
+    "dev-memory": {
+      "allow": ["dessia-memory/"]
+    },
+    "tester": {
+      "allow": []
+    },
+    "final-judge": {
+      "allow": []
+    }
+  }
+}
