@@ -1,0 +1,10 @@
+{
+  "agents": {
+    "dev": {
+      "allow": ["src/", "tests/", "pyproject.toml"]
+    },
+    "final-judge": {
+      "allow": []
+    }
+  }
+}

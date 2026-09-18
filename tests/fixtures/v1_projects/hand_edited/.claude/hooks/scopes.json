@@ -1,0 +1,10 @@
+{
+  "agents": {
+    "dev": {
+      "allow": ["src/mylib/", "tests/", "pyproject.toml"]
+    },
+    "security-reviewer": {
+      "allow": []
+    }
+  }
+}

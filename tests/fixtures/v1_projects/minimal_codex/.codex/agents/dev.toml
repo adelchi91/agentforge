@@ -1,0 +1,4 @@
+name = "dev"
+description = "Implements the assigned story's scope."
+developer_instructions = "You implement the current story's scope. Stay inside your allowed paths."
+sandbox_mode = "workspace-write"
