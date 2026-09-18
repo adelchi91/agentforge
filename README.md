@@ -87,6 +87,18 @@ testing behind that decision (cross-marketplace dependency resolution was
 tried and found unreliable) and the full 8-scenario coexistence test
 matrix.
 
+Then, inside your project, run:
+
+```
+/agentforge:setup
+```
+
+This plans a small, delimited pointer block in your `CLAUDE.md`/`AGENTS.md`
+plus a committed `.agentforge/config.json`, shows you the exact diff, and
+writes nothing until you approve it. If `mattpocock-skills` isn't detected
+as installed and enabled, it prints the install command above and stops —
+it never scaffolds around a missing companion plugin.
+
 ### Script install (Codex, or Claude without plugins)
 
 ```bash
@@ -106,7 +118,62 @@ same bootstrap resources bundled beside it.
 Installation chooses the tool surface you start from. The bootstrap flow itself then asks
 which output target to generate, so either surface can scaffold `CLAUDE` or `CODEX`.
 
-## Usage
+## Using AgentForge v2 with Matt's skills
+
+AgentForge and `mattpocock-skills` split the work cleanly, so you only
+ever need one command surface for a given concern:
+
+| | Owns |
+|---|---|
+| **`mattpocock-skills`** | clarification/grilling, specs, ticket decomposition, TDD, bug diagnosis, code review, architecture, research, prototypes |
+| **AgentForge** | project setup, work-contract quality, active-work context that survives a restart/compaction, Git-level commit/push traceability, graded scope guardrails, migration safety |
+| **Git/CI/branch protection** | merge authorization, immutable history, code quality gates |
+
+AgentForge never wraps or renames Matt's commands — call his skills
+directly. The recommended flow for a piece of work, once both plugins are
+installed and `/agentforge:setup` has run once:
+
+```
+/mattpocock-skills:grill-with-docs      # sharpen the plan/design (optional for small tasks)
+          ↓
+/mattpocock-skills:to-spec              # turn the conversation into a spec
+          ↓
+/mattpocock-skills:to-tickets           # break the spec into tracer-bullet tickets
+          ↓
+/agentforge:prepare-work <ticket-id>    # resolve the ticket, check blockers/contract, snapshot active work
+          ↓
+/mattpocock-skills:implement            # implement against the snapshotted contract
+          ↓
+/mattpocock-skills:code-review          # two-axis review: standards + spec
+          ↓
+git commit / push                       # enforced by AgentForge's commit-msg + pre-push hooks
+```
+
+For a small task, skip the grill/spec/tickets steps and just run
+`/agentforge:prepare-work <id>` — it accepts or creates one local work
+contract directly (`templates/local-work-item.md`) rather than requiring
+the full spec/ticket ceremony.
+
+`/agentforge:prepare-work` is what makes this durable: it snapshots the
+ticket's identity, scope, exclusions, and verification commands to
+`.agentforge/active-work.json` (gitignored, never the network), and a
+lifecycle hook restores that same context automatically after a session
+restart, `/clear`, or a context compaction — so a long `implement` session
+never silently loses track of what it was allowed to touch or how to
+verify it.
+
+See [`docs/release-v2.md`](docs/release-v2.md) for the full picture:
+installation, upgrade/uninstall/rollback, the assurance-mode table (what
+each scope-policy setting actually enforces versus merely observes), the
+compatibility matrix, and exactly what's still outstanding before v2 is
+declared stable.
+
+## Usage: the v1 bootstrap interview
+
+The original `project-bootstrap` flow, unchanged and still supported
+alongside AgentForge v2 above — use it when you want the full generated
+scaffold (constitution, personas, hooks, stories) from a structured
+interview rather than v2's lighter companion layer.
 
 ```bash
 # In any Claude Code session, from your project root:
