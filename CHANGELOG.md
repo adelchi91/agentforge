@@ -210,3 +210,38 @@ removed until a later story retires it (see
   de-duplication is documented as a known, accepted limitation — the
   hook payload carries no stable per-turn key, only a session-wide one
   that would suppress re-injection for too long.
+
+### Added (STORY-018)
+
+- Codex parity, reusing the same Python policy modules and fixtures
+  rather than a second implementation: `tests/test_cross_harness_hooks.py`
+  feeds byte-distinct Claude-shaped and Codex-shaped payloads through the
+  real `scripts/context.py`/`scripts/scope_policy.py` handlers and asserts
+  identical behavior, including with `CLAUDE_PLUGIN_ROOT`/`PLUGIN_ROOT`
+  and their `*_DATA` counterparts stripped from the environment — a static
+  check also confirms neither module contains `os.environ`/`os.getenv` at
+  all. `tests/test_codex_packaging.py` covers the Codex-side packaging.
+- `skills/{setup,prepare-work,work-contract,reconcile-docs,migration-safety}/agents/openai.yaml`:
+  per-skill Codex invocation policy (`policy.allow_implicit_invocation`),
+  one file per skill directory rather than a single top-level file —
+  verified against current Codex skill-discovery documentation
+  (`https://learn.chatgpt.com/docs/build-skills`) rather than assumed; a
+  test pins that no stray top-level `agents/openai.yaml` was also added.
+- `templates/codex/agents/independent-reviewer.toml` and `verifier.toml`:
+  STORY-017's two capability agents, ported to Codex's TOML custom-agent
+  format (`https://learn.chatgpt.com/docs/agent-configuration/subagents`).
+- `templates/codex/hooks.json`: corrected `"Stop"` to `"SessionEnd"` for
+  the session-record hook — the old mapping was the exact per-turn-`Stop`
+  anti-pattern the execution plan explicitly warns against now that
+  current Codex has a real `SessionEnd` event
+  (`https://learn.chatgpt.com/docs/hooks`). This is a live scaffolding
+  template, not a checksum-frozen fixture; the parallel, byte-frozen
+  `examples/codex-minimal/.codex/` tree is deliberately left stale and
+  documented as such — migrating generated example projects is STORY-019.
+- `docs/codex-compatibility.md`: the full citation trail for every
+  Codex-specific claim above, plus an explicit "Known limitations / open
+  questions" section (unconfirmed `agent_type`-equivalent attribution
+  under Codex custom agents, `PermissionRequest` deliberately not wired,
+  no single canonical `sandbox_mode` enumeration, Codex's coarser sandbox
+  granularity versus Claude's per-tool grants, and that AgentForge does
+  not yet ship as an installable Codex plugin package).
