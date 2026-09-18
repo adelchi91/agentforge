@@ -1,0 +1,200 @@
+name: CI
+
+# STORY-020 required CI: the deterministic checks every push/PR must pass
+# from a clean checkout. Deliberately excludes anything that needs a
+# GitHub-registered SSH key, an ANTHROPIC_API_KEY, or a per-account
+# early-access flag — those live in integration.yml and plugin-eval.yml
+# instead (see docs/release-v2.md's "Continuous integration" section for
+# why the split, and exactly which checks are required vs. advisory).
+
+on:
+  push:
+    branches: [main, agentforge-v2]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref so a fast-follow push doesn't
+# queue behind (or race) a stale one.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: unit tests (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # OS bound, documented: ubuntu-latest + macos-latest only.
+        # scripts/git_policy.py, scripts/setup.py, and scripts/scope_policy.py
+        # all call os.chmod and install POSIX-shebang (#!/bin/sh) Git hooks
+        # (templates/git-hooks/commit-msg, templates/git-hooks/pre-push) —
+        # this plugin does not target Windows yet, so windows-latest is
+        # excluded rather than run and silently ignored/xfailed. Revisit
+        # if/when Windows support is an explicit goal.
+        os: [ubuntu-latest, macos-latest]
+        # Python bound, documented: every currently-supported CPython
+        # minor as of this story (2026-09-18) that GitHub-hosted runners
+        # provide via actions/setup-python. 3.9 is excluded (EOL
+        # 2025-10-05). This repository has no python_requires/pyproject.toml
+        # pin of its own — every scripts/*.py module is stdlib-only
+        # (json/re/argparse/dataclasses/pathlib) with no version-gated
+        # syntax (checked: no `match` statements, no walrus operator, no
+        # 3.10+-only union-type syntax outside `from __future__ import
+        # annotations` guards) — so the floor is "not yet EOL," not a
+        # tested minimum. Only 3.12 (this development machine's
+        # interpreter) was actually exercised outside of GitHub Actions
+        # before this workflow was authored; 3.10/3.11/3.13 rely on
+        # actions/setup-python and have not been separately verified in
+        # this sandbox — see docs/release-v2.md's CI section.
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run unit test suite
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Version synchronization check
+        run: python3 scripts/check_version_sync.py
+
+  json-validation:
+    name: JSON validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate every tracked JSON file parses
+        run: |
+          set -euo pipefail
+          # Every *.json file this repository actually ships or tests
+          # with, git-tracked (skips .gitignore'd eval results and any
+          # untracked scratch file) so this check has the same notion of
+          # "the repo" as `git diff --check` does below. One deliberate
+          # exclusion: tests/fixtures/config/malformed.json is
+          # intentionally-invalid JSON, a fixture test_config.py uses to
+          # prove scripts/config.py's parser reports malformed input
+          # correctly rather than raising uncaught — excluding it here is
+          # not silently widening coverage, it is not double-checking a
+          # fixture whose entire purpose is to fail to parse.
+          mapfile -t files < <(git ls-files '*.json' | grep -v '^tests/fixtures/config/malformed\.json$')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no tracked JSON files found" >&2
+            exit 1
+          fi
+          echo "checking ${#files[@]} JSON files (excluding the one intentionally-malformed fixture)"
+          status=0
+          for f in "${files[@]}"; do
+            if ! python3 -m json.tool "$f" > /dev/null; then
+              echo "INVALID JSON: $f" >&2
+              status=1
+            fi
+          done
+          exit "$status"
+
+  shell-syntax:
+    name: Shell syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax-check every tracked shell script against its own shebang
+        run: |
+          set -euo pipefail
+          # install.sh (#!/usr/bin/env bash) and the two Git hook
+          # templates (#!/bin/sh) are the only shell scripts this repo
+          # ships. Found by shebang, not just *.sh, since the Git hook
+          # templates are extensionless (a real commit-msg/pre-push hook
+          # must be, to be invoked by Git). Each is checked with its own
+          # declared interpreter's `-n` (syntax-only, never executed) —
+          # a POSIX #!/bin/sh script and a bash-only #!/usr/bin/env bash
+          # script are not interchangeable syntax-checkers for each
+          # other's features. Pure bash string manipulation (no sed/xargs)
+          # to sidestep GNU-vs-BSD flag differences entirely.
+          status=0
+          found=0
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            first_line=$(head -n1 "$f" 2>/dev/null || true)
+            case "$first_line" in
+              '#!'*)
+                shebang="${first_line#\#!}"
+                case "$shebang" in
+                  *env\ *) interpreter="${shebang#*env }" ;;
+                  *) interpreter="$shebang" ;;
+                esac
+                base="${interpreter##*/}"
+                if [ "$base" = "sh" ] || [ "$base" = "bash" ]; then
+                  found=1
+                  echo "checking $f (interpreter: $interpreter)"
+                  if ! "$interpreter" -n "$f"; then
+                    echo "SYNTAX ERROR: $f" >&2
+                    status=1
+                  fi
+                fi
+                ;;
+            esac
+          done < <(git ls-files)
+          if [ "$found" -eq 0 ]; then
+            echo "no shebang'd shell scripts found" >&2
+            exit 1
+          fi
+          exit "$status"
+
+  git-diff-check:
+    name: git diff --check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Whitespace-error check across this ref's own history
+        run: |
+          set -euo pipefail
+          # `git diff --check` bare (no ref) only inspects an unstaged
+          # working-tree diff, which is always empty on a fresh checkout
+          # in CI — the story's own literal verification command, kept
+          # below for parity, but trivially a no-op here. The
+          # meaningful CI check is the same whitespace-error scan run
+          # across every commit this ref actually introduces relative to
+          # its merge base with main, so a trailing-whitespace or
+          # conflict-marker regression in the PR's own diff is actually
+          # caught.
+          git diff --check
+          if git rev-parse --verify --quiet origin/main >/dev/null; then
+            base=$(git merge-base origin/main HEAD)
+            echo "Checking diff from $base to HEAD"
+            git diff --check "$base"...HEAD
+          else
+            echo "origin/main not available in this checkout (e.g. a push to main itself); skipping the ranged check."
+          fi
+
+  plugin-validate:
+    name: claude plugin validate --strict
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No ANTHROPIC_API_KEY and no login needed: `claude plugin validate`
+      # is local manifest/directory-structure validation only, no API
+      # calls (confirmed against the current installer docs when this
+      # workflow was authored, 2026-09-18) — see docs/release-v2.md.
+      - name: Install Claude Code CLI
+        run: curl -fsSL https://claude.ai/install.sh | bash
+
+      - name: Add installed CLI to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: claude plugin validate . --strict
+        run: claude plugin validate . --strict

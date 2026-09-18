@@ -35,6 +35,26 @@ network/auth-sensitive CLI integration tests from deterministic ones:
   unless `AGENTFORGE_LIVE_INTEGRATION=1` is set, since network access
   makes it nondeterministic in offline/sandboxed CI.
 
+- `PinnedMattCoexistenceTests` (STORY-020) shares every coexistence
+  assertion with `LiveMattCoexistenceTests` via the `MattCoexistenceMixin`
+  below, but resolves `mattpocock-skills` from
+  `tests/fixtures/pinned_mattpocock_marketplace/` instead of the real
+  `claude-plugins-official` marketplace — a local marketplace.json using
+  the exact same `{"source": "url", "url": ..., "sha": ...}` shape
+  Anthropic's own marketplace entry uses, just naming one fixed,
+  previously-verified-good commit (the version 1.2.3 pin recorded in
+  `docs/compatibility.md`) instead of whatever that marketplace currently
+  points to. This is STORY-020's "pinned known-good Matt release" leg of
+  the integration matrix; `LiveMattCoexistenceTests` is the "latest
+  available release" leg. Running both and comparing outcomes is the
+  categorization mechanism `.github/workflows/integration.yml` uses:
+  pinned passes + latest fails → upstream drift (Matt's repository or the
+  official marketplace's pointer changed); pinned itself fails → an
+  AgentForge-side or Claude-CLI-version regression, since this exact
+  upstream state was previously confirmed working. Also opt-in only,
+  behind `AGENTFORGE_LIVE_INTEGRATION=1` (it still clones the real
+  `mattpocock/skills.git` over the network, just at a fixed commit).
+
 The full manual scenario matrix (8 scenarios, including the legacy
 `project-bootstrap` rename path and `--plugin-dir` loading) and the
 dependency-mechanism evidence behind STORY-003's decision to ship no
@@ -55,6 +75,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 FIXTURE_MARKETPLACE = REPO_ROOT / "tests" / "fixtures" / "fake_upstream_marketplace"
 DEPENDENT_FIXTURE_MARKETPLACE = REPO_ROOT / "tests" / "fixtures" / "fake_dependent_marketplace"
+PINNED_MATT_MARKETPLACE = REPO_ROOT / "tests" / "fixtures" / "pinned_mattpocock_marketplace"
+
+# STORY-020: the version 1.2.3 commit docs/compatibility.md recorded as
+# tested-good on 2026-09-16. Kept here (not just in the fixture
+# marketplace.json) so PinnedMattCoexistenceTests's docstrings/messages
+# can cite it directly. Re-pin deliberately, not automatically, if that
+# evidence is ever refreshed against a newer commit.
+KNOWN_GOOD_MATT_SHA = "3cca18b368ae95cdbdebbff572ccafa662551015"
 
 CLAUDE_BIN = shutil.which("claude")
 LIVE = os.environ.get("AGENTFORGE_LIVE_INTEGRATION") == "1"
@@ -375,35 +403,36 @@ class DependencyMechanismTests(IsolatedConfigTestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
-@unittest.skipUnless(LIVE, "set AGENTFORGE_LIVE_INTEGRATION=1 to run network-dependent tests")
-class LiveMattCoexistenceTests(IsolatedConfigTestCase):
-    """Real mattpocock-skills, over the network. Opt-in only.
+class MattCoexistenceMixin:
+    """Shared, marketplace-parametrized coexistence assertions against the
+    real `mattpocock-skills` plugin. Deliberately NOT a `TestCase` subclass
+    itself (only `unittest.TestCase` subclasses that mix this in are test
+    classes), so unittest discovery never tries to instantiate it alone —
+    it has no `MATT_MARKETPLACE_NAME`/`_add_matt_marketplace` of its own.
 
-    Uses public, unauthenticated git access to the real
-    `claude-plugins-official` marketplace and `mattpocock/skills.git`.
-    Never touches the real user config; never writes credentials into the
-    isolated config dir it creates.
+    A concrete subclass must set `MATT_MARKETPLACE_NAME` and implement
+    `_add_matt_marketplace`; every test method below reads the resulting
+    plugin id through `self.matt_plugin_id` rather than a hardcoded
+    string, so the same three assertions run unchanged against whichever
+    marketplace resolution the subclass wires up (STORY-020: real
+    "latest" vs. real "pinned known-good").
     """
 
-    def _add_official_marketplace(self) -> None:
-        result = run_claude(
-            self.config_dir,
-            "plugin",
-            "marketplace",
-            "add",
-            "anthropics/claude-plugins-official",
-            timeout=180,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        result = run_claude(self.config_dir, "plugin", "marketplace", "add", str(REPO_ROOT))
-        self.assertEqual(result.returncode, 0, result.stderr)
+    MATT_MARKETPLACE_NAME: str = ""
+
+    @property
+    def matt_plugin_id(self) -> str:
+        return f"mattpocock-skills@{self.MATT_MARKETPLACE_NAME}"
+
+    def _add_matt_marketplace(self) -> None:  # pragma: no cover - overridden
+        raise NotImplementedError
 
     def _install_matt(self) -> None:
         result = run_claude(
             self.config_dir,
             "plugin",
             "install",
-            "mattpocock-skills@claude-plugins-official",
+            self.matt_plugin_id,
             "-y",
             timeout=180,
         )
@@ -413,14 +442,15 @@ class LiveMattCoexistenceTests(IsolatedConfigTestCase):
     # available once AgentForge is installed alongside. Set equality
     # (before installing AgentForge vs. after), not a hardcoded minimum —
     # the only hardcoded number is the observed v1.2.3 baseline count,
-    # asserted separately from the preservation check itself.
+    # asserted separately from the preservation check itself. This is
+    # also STORY-020's drift signal: run unchanged against both the
+    # pinned and latest marketplaces, a mismatch here that only fails on
+    # the latest leg is upstream drift, not an AgentForge defect.
     def test_matt_installed_directly_then_agentforge_both_enabled(self) -> None:
-        self._add_official_marketplace()
+        self._add_matt_marketplace()
         self._install_matt()
 
-        before = promoted_skill_snapshot(
-            self.config_dir, "mattpocock-skills@claude-plugins-official"
-        )
+        before = promoted_skill_snapshot(self.config_dir, self.matt_plugin_id)
         self.assertEqual(
             len(before), 25, "observed baseline for the tested mattpocock-skills v1.2.3 pin"
         )
@@ -430,53 +460,45 @@ class LiveMattCoexistenceTests(IsolatedConfigTestCase):
 
         plugins = by_id(self.config_dir)
         self.assertTrue(plugins["agentforge@agentforge"]["enabled"])
-        self.assertTrue(plugins["mattpocock-skills@claude-plugins-official"]["enabled"])
+        self.assertTrue(plugins[self.matt_plugin_id]["enabled"])
 
-        after = promoted_skill_snapshot(
-            self.config_dir, "mattpocock-skills@claude-plugins-official"
-        )
+        after = promoted_skill_snapshot(self.config_dir, self.matt_plugin_id)
         assert_promoted_skills_preserved(self, before, after)
 
     # Scenario 4, against the real upstream plugin.
     def test_uninstall_agentforge_preserves_directly_installed_matt(self) -> None:
-        self._add_official_marketplace()
+        self._add_matt_marketplace()
         self._install_matt()
         run_claude(self.config_dir, "plugin", "install", "agentforge@agentforge", "-y")
 
-        before = promoted_skill_snapshot(
-            self.config_dir, "mattpocock-skills@claude-plugins-official"
-        )
+        before = promoted_skill_snapshot(self.config_dir, self.matt_plugin_id)
 
         result = run_claude(self.config_dir, "plugin", "uninstall", "agentforge@agentforge", "-y")
         self.assertEqual(result.returncode, 0, result.stderr)
 
         names = installed_names(self.config_dir)
         self.assertNotIn("agentforge@agentforge", names)
-        self.assertIn("mattpocock-skills@claude-plugins-official", names)
+        self.assertIn(self.matt_plugin_id, names)
 
-        after = promoted_skill_snapshot(
-            self.config_dir, "mattpocock-skills@claude-plugins-official"
-        )
+        after = promoted_skill_snapshot(self.config_dir, self.matt_plugin_id)
         assert_promoted_skills_preserved(self, before, after)
 
     # Scenario 5, against the real upstream plugin: updating Matt
     # independently must not disturb AgentForge's installed-plugin record,
     # nor its own promoted skill set.
     def test_updating_matt_does_not_disturb_agentforge(self) -> None:
-        self._add_official_marketplace()
+        self._add_matt_marketplace()
         self._install_matt()
         run_claude(self.config_dir, "plugin", "install", "agentforge@agentforge", "-y")
 
         before_agentforge = by_id(self.config_dir)["agentforge@agentforge"]
-        before_matt_skills = promoted_skill_snapshot(
-            self.config_dir, "mattpocock-skills@claude-plugins-official"
-        )
+        before_matt_skills = promoted_skill_snapshot(self.config_dir, self.matt_plugin_id)
 
         result = run_claude(
             self.config_dir,
             "plugin",
             "update",
-            "mattpocock-skills@claude-plugins-official",
+            self.matt_plugin_id,
             "-y",
             timeout=180,
         )
@@ -485,19 +507,64 @@ class LiveMattCoexistenceTests(IsolatedConfigTestCase):
         after_agentforge = by_id(self.config_dir)["agentforge@agentforge"]
         self.assertEqual(before_agentforge, after_agentforge)
 
-        after_matt_skills = promoted_skill_snapshot(
-            self.config_dir, "mattpocock-skills@claude-plugins-official"
-        )
+        after_matt_skills = promoted_skill_snapshot(self.config_dir, self.matt_plugin_id)
         assert_promoted_skills_preserved(self, before_matt_skills, after_matt_skills)
+
+
+@unittest.skipUnless(CLAUDE_BIN, "claude CLI not found on PATH")
+@unittest.skipUnless(LIVE, "set AGENTFORGE_LIVE_INTEGRATION=1 to run live-network tests")
+class LiveMattCoexistenceTests(MattCoexistenceMixin, IsolatedConfigTestCase):
+    """Real mattpocock-skills at whatever commit `claude-plugins-official`
+    currently resolves it to ("latest available release"), over the
+    network. Opt-in only.
+
+    Uses public, unauthenticated git access to the real
+    `claude-plugins-official` marketplace and `mattpocock/skills.git`.
+    Never touches the real user config; never writes credentials into the
+    isolated config dir it creates.
+
+    STORY-020: adds the marketplace by its explicit `https://github.com/...`
+    URL, not the `owner/repo` shorthand. Verified (`GIT_SSH_COMMAND` pointed
+    at a config with no identity) that the shorthand form clones over SSH
+    (`git@github.com:...`), which GitHub refuses with no registered key even
+    for a public repository — exactly the failure mode a GitHub Actions
+    runner hits with no SSH key provisioned. The explicit HTTPS URL clones
+    anonymously and needs no credential at all, which is what actually
+    makes this test CI-runnable rather than laptop-only.
+    """
+
+    MATT_MARKETPLACE_NAME = "claude-plugins-official"
+
+    def _add_matt_marketplace(self) -> None:
+        result = run_claude(
+            self.config_dir,
+            "plugin",
+            "marketplace",
+            "add",
+            "https://github.com/anthropics/claude-plugins-official.git",
+            timeout=180,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = run_claude(self.config_dir, "plugin", "marketplace", "add", str(REPO_ROOT))
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     # Scenario 7: the marketplace `renames` field is discovery metadata,
     # not an automatic migration. Proven by repointing the marketplace a
     # legacy install came from at the current manifest and confirming the
     # old plugin id is silently dropped from the installed-plugins
-    # registry rather than becoming `agentforge@agentforge`.
+    # registry rather than becoming `agentforge@agentforge`. Kept only on
+    # this class (not the mixin): it exercises the `adelchi91/agentforge`
+    # legacy-rename path, unrelated to which Matt marketplace is pinned,
+    # so running it twice (once per Matt marketplace variant) would just
+    # be a duplicate network round-trip with no new signal.
     def test_legacy_rename_is_not_automatic_migration(self) -> None:
         legacy = run_claude(
-            self.config_dir, "plugin", "marketplace", "add", "adelchi91/agentforge", timeout=180
+            self.config_dir,
+            "plugin",
+            "marketplace",
+            "add",
+            "https://github.com/adelchi91/agentforge.git",
+            timeout=180,
         )
         self.assertEqual(legacy.returncode, 0, legacy.stderr)
         install = run_claude(
@@ -517,6 +584,56 @@ class LiveMattCoexistenceTests(IsolatedConfigTestCase):
             names,
             "the rename must not silently activate the new identity",
         )
+
+
+@unittest.skipUnless(CLAUDE_BIN, "claude CLI not found on PATH")
+@unittest.skipUnless(LIVE, "set AGENTFORGE_LIVE_INTEGRATION=1 to run live-network tests")
+class PinnedMattCoexistenceTests(MattCoexistenceMixin, IsolatedConfigTestCase):
+    """Real mattpocock-skills, pinned at one fixed, previously-verified
+    commit ("pinned known-good release" — STORY-020's other leg of the
+    integration matrix). Opt-in only, and still a real network clone of
+    `mattpocock/skills.git` (just at `KNOWN_GOOD_MATT_SHA` rather than
+    whatever `claude-plugins-official` currently resolves to), so it sits
+    behind the same `AGENTFORGE_LIVE_INTEGRATION=1` gate as
+    `LiveMattCoexistenceTests`.
+
+    Every test method it runs is inherited unchanged from
+    `MattCoexistenceMixin` — this class exists only to point
+    `_add_matt_marketplace` at
+    `tests/fixtures/pinned_mattpocock_marketplace/` instead of the real
+    `claude-plugins-official` marketplace. See the module docstring for
+    how `.github/workflows/integration.yml` uses the pinned-vs-latest
+    pair to categorize a failure as upstream drift or an AgentForge-side
+    regression.
+    """
+
+    MATT_MARKETPLACE_NAME = "mattpocock-pinned"
+
+    def _add_matt_marketplace(self) -> None:
+        result = run_claude(
+            self.config_dir,
+            "plugin",
+            "marketplace",
+            "add",
+            str(PINNED_MATT_MARKETPLACE),
+            timeout=180,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = run_claude(self.config_dir, "plugin", "marketplace", "add", str(REPO_ROOT))
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_pinned_marketplace_actually_resolves_the_known_good_sha(self) -> None:
+        """Regression guard for the fixture itself: fails loudly (not as
+        a mysterious install error) if `KNOWN_GOOD_MATT_SHA` and
+        `tests/fixtures/pinned_mattpocock_marketplace/.claude-plugin/marketplace.json`
+        are ever edited out of sync with each other."""
+        marketplace_json = json.loads(
+            (PINNED_MATT_MARKETPLACE / ".claude-plugin" / "marketplace.json").read_text()
+        )
+        (matt_entry,) = [
+            p for p in marketplace_json["plugins"] if p["name"] == "mattpocock-skills"
+        ]
+        self.assertEqual(matt_entry["source"]["sha"], KNOWN_GOOD_MATT_SHA)
 
 
 if __name__ == "__main__":

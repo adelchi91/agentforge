@@ -1,0 +1,18 @@
+{
+  "name": "mattpocock-pinned",
+  "description": "Local marketplace fixture that resolves the real mattpocock-skills plugin at one fixed, previously-verified-good commit, for STORY-020's pinned leg of the integration matrix (tests/integration/test_plugin_coexistence.py's PinnedMattCoexistenceTests). Not a fork or vendored copy -- this is the same {source: url, sha} shape anthropics/claude-plugins-official's own marketplace.json uses for this plugin, just naming an older, already-tested commit instead of whatever that marketplace currently points to.",
+  "owner": {
+    "name": "agentforge-tests"
+  },
+  "plugins": [
+    {
+      "name": "mattpocock-skills",
+      "description": "Matt Pocock's agent skills, pinned at the version 1.2.3 commit recorded in docs/compatibility.md (2026-09-16 evidence).",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/mattpocock/skills.git",
+        "sha": "3cca18b368ae95cdbdebbff572ccafa662551015"
+      }
+    }
+  ]
+}

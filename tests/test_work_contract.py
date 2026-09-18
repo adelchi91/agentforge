@@ -366,7 +366,18 @@ class WorkContractEvalCoverageTests(unittest.TestCase):
         # just any prose in the file -- a mention of "invent" in a grader's
         # explanatory paragraph is not the same as that grader actually
         # checking for it.
+        #
+        # STORY-020 added `not-a-trigger` cases (e.g.
+        # unrelated-question-does-not-trigger/) to this same directory to
+        # cover correct skill *non*-triggering. Those scenarios never ask
+        # for a work contract at all, so there is no verification-command
+        # quality to guard against fabrication/vagueness in the first
+        # place -- excluded from this specific assertion, not from
+        # `self.cases`/`self.by_tag` generally (they still count for any
+        # coverage check that isn't contract-quality-specific).
         for case_dir in self.cases:
+            if "not-a-trigger" in case_tags(case_dir):
+                continue
             matching_field_text = " ".join(
                 frontmatter(g).get("pattern", frontmatter(g).get("criteria", "")).lower()
                 for g in (case_dir / "graders").glob("*.md")

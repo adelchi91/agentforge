@@ -1,0 +1,128 @@
+name: Upstream integration matrix
+
+# STORY-020's "integration matrix: pinned known-good Matt release and
+# latest available release, with failures categorized as upstream drift
+# or AgentForge regression." Wires STORY-003's existing opt-in live
+# mechanism (tests/integration/test_plugin_coexistence.py,
+# AGENTFORGE_LIVE_INTEGRATION=1) into CI rather than duplicating it —
+# see docs/compatibility.md and the module docstring for the full design.
+#
+# Deliberately a separate workflow from ci.yml, and not required for a
+# PR to merge: it depends on outbound network access to github.com,
+# which is real, meaningful signal but not something every push should
+# block on (STORY-003 itself documents mattpocock/skills' tagging/commit
+# state as something that moves independently of this repo). Runs on a
+# schedule, on demand, and (non-blocking) on pull requests that touch
+# the coexistence surface.
+
+on:
+  schedule:
+    # Weekly, not daily: this exists to catch upstream drift, not to
+    # generate noise for a plugin repo mattpocock/skills has no
+    # obligation to keep stable for. Monday 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - "tests/integration/**"
+      - "tests/fixtures/pinned_mattpocock_marketplace/**"
+      - ".claude-plugin/**"
+      - "docs/compatibility.md"
+
+permissions:
+  contents: read
+
+jobs:
+  latest:
+    name: "latest available release (claude-plugins-official)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      outcome: ${{ steps.run.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Claude Code CLI
+        run: curl -fsSL https://claude.ai/install.sh | bash
+      - name: Add installed CLI to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Run LiveMattCoexistenceTests
+        id: run
+        env:
+          AGENTFORGE_LIVE_INTEGRATION: "1"
+        run: |
+          python3 -m unittest \
+            tests.integration.test_plugin_coexistence.LiveMattCoexistenceTests -v
+
+  pinned:
+    name: "pinned known-good release (mattpocock-pinned fixture)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      outcome: ${{ steps.run.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Claude Code CLI
+        run: curl -fsSL https://claude.ai/install.sh | bash
+      - name: Add installed CLI to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Run PinnedMattCoexistenceTests
+        id: run
+        env:
+          AGENTFORGE_LIVE_INTEGRATION: "1"
+        run: |
+          python3 -m unittest \
+            tests.integration.test_plugin_coexistence.PinnedMattCoexistenceTests -v
+
+  categorize:
+    name: Categorize result
+    needs: [latest, pinned]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report upstream drift vs. AgentForge regression
+        env:
+          LATEST_RESULT: ${{ needs.latest.outputs.outcome }}
+          PINNED_RESULT: ${{ needs.pinned.outputs.outcome }}
+        run: |
+          set -euo pipefail
+          echo "latest leg:  $LATEST_RESULT"
+          echo "pinned leg:  $PINNED_RESULT"
+          echo
+
+          # Categorization heuristic (documented, not proven infallible —
+          # see docs/release-v2.md's "Integration matrix" section for the
+          # limits of this reasoning):
+          #
+          #   pinned=success, latest=success  -> no regression.
+          #   pinned=success, latest=failure  -> upstream drift: the
+          #     exact commit already proven to work still works, so
+          #     whatever changed lives on the claude-plugins-official /
+          #     mattpocock/skills side, not in this repository.
+          #   pinned=failure                  -> AgentForge-side or
+          #     Claude-CLI-version regression: this exact upstream state
+          #     was previously confirmed working (docs/compatibility.md),
+          #     so a failure against it now points at this repo's
+          #     manifest/hooks, or a CLI version change, not upstream.
+          #   both failure, different shape  -> ambiguous; both legs'
+          #     logs need manual triage before assuming either category.
+          if [ "$PINNED_RESULT" = "success" ] && [ "$LATEST_RESULT" = "success" ]; then
+            echo "RESULT: no regression detected."
+          elif [ "$PINNED_RESULT" = "success" ] && [ "$LATEST_RESULT" != "success" ]; then
+            echo "RESULT: UPSTREAM DRIFT suspected -- pinned known-good release still" \
+                 "passes, latest available release does not. Investigate" \
+                 "mattpocock/skills / claude-plugins-official changes; this is not" \
+                 "necessarily an AgentForge defect."
+            exit 1
+          elif [ "$PINNED_RESULT" != "success" ]; then
+            echo "RESULT: AGENTFORGE-SIDE (or Claude CLI version) REGRESSION suspected --" \
+                 "the pinned, previously-verified-good release now fails too." \
+                 "Treat per docs/release-v2.md's stability gate: this counts as an" \
+                 "unresolved severity-high hook/config defect until triaged."
+            exit 1
+          fi
