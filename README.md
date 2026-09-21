@@ -168,6 +168,89 @@ each scope-policy setting actually enforces versus merely observes), the
 compatibility matrix, and exactly what's still outstanding before v2 is
 declared stable.
 
+## Migrating an existing v1 project to v2
+
+If a project already has a v1 `project-bootstrap` scaffold (`.claude/`
+and/or `.codex/` from the original 6-step interview) and you want to
+bring it to the v2 companion layer instead of starting fresh, use
+`/agentforge:migrate-v1`. It never deletes a v1 file — superseded
+content moves to a timestamped
+`.agentforge/migration-archive/<timestamp>/`, and every applied
+migration comes with exact rollback steps. Full detail:
+[`docs/migration-v1-to-v2.md`](docs/migration-v1-to-v2.md) and
+`skills/migrate-v1/SKILL.md`.
+
+```bash
+# 1. Dry run — writes nothing, prints a full classification report
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/migrate_v1.py plan --project-root .
+
+# 2. Review the report: every v1 artifact is classified as retained /
+#    transformed / archived / manual_review / obsolete, with a reason.
+#    Read every warning, especially anything about v1's Bash-blocking
+#    hooks never being a real security boundary — v2 starts scope.mode
+#    at "observe" after migration for exactly that reason.
+
+# 3. Apply, once you approve the plan_id from step 1
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/migrate_v1.py apply --project-root . \
+  --approved-plan-id <plan_id> [--v2-hooks-validated]
+
+# 4. Rollback, if needed — restores every file to its exact
+#    pre-migration state and moves archived files back
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/migrate_v1.py rollback --project-root . \
+  --timestamp <timestamp-from-the-archive-directory-name>
+```
+
+Pass `--v2-hooks-validated` in step 3 only once AgentForge v2 is
+confirmed installed and enabled for the project (`claude plugin list`)
+— otherwise the v1 hooks stay registered rather than leaving the
+project with neither the old nor the new one active. A v1 story tracked
+on a remote issue tracker (GitHub/GitLab) is reported as
+`manual_review` rather than auto-converted — AgentForge's tracker
+adapters are fetch-only. Re-running `plan` after a completed migration
+reports `"no_change"` — the migration is idempotent.
+
+## Temporary: connecting Jira via the Atlassian MCP connector
+
+> **Status: temporary, pilot-specific.** This section exists to support
+> the AgentForge v2 pilot (`docs/pilot-report-template.md`) while a work
+> item needs real Jira tickets. It documents a manual bridge, not a
+> supported AgentForge feature — remove or replace it once the pilot
+> concludes and its findings inform a real design.
+
+Neither Matt Pocock's `to-tickets` skill nor AgentForge's own
+`/agentforge:prepare-work` has a native Jira integration:
+
+- `to-tickets`'s setup skill (`setup-matt-pocock-skills`) offers "Other
+  (Jira, Linear, etc.)" as a tracker option, but only records your
+  described workflow as freeform prose in `docs/agents/issue-tracker.md`
+  — there's no bundled Jira API/CLI wrapper the way there is for GitHub
+  (`gh`) or GitLab (`glab`).
+- AgentForge's own tracker adapters (`scripts/work_items.py`, STORY-006)
+  only implement `local`, `github`, and `gitlab` — no `jira` provider
+  exists, so `/agentforge:prepare-work` cannot resolve a Jira ticket by
+  ID.
+
+Instead, a separate `claude.ai Atlassian` MCP connector may be available
+in your Claude Code environment, independent of either plugin:
+
+1. Run `/mcp` inside a Claude Code session and select **"claude.ai
+   Atlassian"** to start the OAuth flow.
+2. Approve the authorization request in your browser against your work
+   account.
+3. Once authenticated, real Jira tools (search, create issue, etc.)
+   become available to Claude directly in that session.
+
+This is a **manual bridge**, not an automated pipeline: `to-tickets`
+still produces the ticket breakdown as usual, and Claude then creates
+the corresponding Jira issues one at a time using the authenticated
+Atlassian tools, rather than either skill doing it end-to-end on its
+own.
+
+**Not yet verified**: whether the connected Atlassian account actually
+resolves to your company's specific Jira instance — that depends on
+what's linked to your account. Confirm with one test ticket before
+relying on it for real pilot work items.
+
 ## Usage: the v1 bootstrap interview
 
 The original `project-bootstrap` flow, unchanged and still supported
